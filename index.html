@@ -360,7 +360,6 @@
     let modoEdicionTextos = false;
     let cambiosSinGuardar = false;
 
-    // Detectar cierre o recarga de pestaña
     window.addEventListener("beforeunload", function (e) {
         if (cambiosSinGuardar) {
             e.preventDefault();
@@ -373,7 +372,6 @@
     }
 
     function init() {
-        // Cargar preferencia de modo oscuro guardada
         if (localStorage.getItem("darkMode") === "true") {
             document.documentElement.setAttribute("data-theme", "dark");
             document.getElementById("btn-dark").innerText = "☀️";
@@ -519,7 +517,6 @@
                     if (totalNiveles <= 1) {
                         estiloColor = "background-color: rgba(22, 163, 74, 0.25); box-shadow: inset 0 0 0 2px var(--success); font-weight: 500;";
                     } else {
-                        // Gradiente adaptado dinámicamente según la cantidad de columnas
                         const hue = 120 - (colIndex / (totalNiveles - 1)) * 120;
                         const lightness = document.documentElement.getAttribute("data-theme") === "dark" ? "25%" : "85%";
                         estiloColor = "background-color: hsl(" + hue + ", 70%, " + lightness + "); box-shadow: inset 0 0 0 2px hsl(" + hue + ", 80%, 45%); font-weight: 500;";
@@ -607,7 +604,7 @@
     function agregarCriterio() {
         const nuevoId = "c_" + Date.now();
         let descripcionesVacias = {};
-        datosApp.niveles.forEach(n => descripcionesVasks[n.id] = "Nuevo descriptor...");
+        datosApp.niveles.forEach(n => descripcionesVacias[n.id] = "Nuevo descriptor...");
         datosApp.criterios.push({ id: nuevoId, nombre: "Nuevo Criterio", descripciones: descripcionesVacias });
         renderizarMatriz();
         marcarModificado();
@@ -654,7 +651,6 @@
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();
-        // Una vez exportado, asumimos que se han guardado los cambios
         cambiosSinGuardar = false;
     }
 
