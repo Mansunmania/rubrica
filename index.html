@@ -286,6 +286,32 @@
             border: 1px solid var(--border);
             border-radius: 4px;
         }
+        .student-item {
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    /* ...mantén el resto de propiedades anteriores... */
+}
+
+.student-item::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--progress, 0%);
+    background-color: rgba(37, 99, 235, 0.12);
+    z-index: -1;
+    transition: width 0.3s ease;
+}
+
+[data-theme="dark"] .student-item::before {
+    background-color: rgba(59, 130, 246, 0.25);
+}
+
+.student-item.active::before {
+    background-color: rgba(255, 255, 255, 0.2);
+}
     </style>
 </head>
 <body>
@@ -419,23 +445,35 @@
     }
 
     function renderizarAlumnos() {
-        const lista = document.getElementById("lista-alumnos");
-        lista.innerHTML = "";
-        datosApp.alumnos.forEach(alumno => {
-            const notaTotal = calcularNotaTotal(alumno);
-            const li = document.createElement("li");
-            li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
-            
-            li.innerHTML = `
-                <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
-                    <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${alumno.nombre}</span>
-                    <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts</span>
-                </div>
-                <button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno('${alumno.id}')">×</button>
-            `;
-            lista.appendChild(li);
-        });
-    }
+    const lista = document.getElementById("lista-alumnos");
+    lista.innerHTML = "";
+    
+    const totalCriterios = datosApp.criterios.length;
+
+    datosApp.alumnos.forEach(alumno => {
+        const notaTotal = calcularNotaTotal(alumno);
+        
+        // Calcular cuántos criterios tienen una calificación asignada
+        const criteriosEvaluados = Object.keys(alumno.calificaciones).filter(critId => 
+            datosApp.criterios.some(c => c.id === critId) && alumno.calificaciones[critId]
+        ).length;
+
+        const porcentaje = totalCriterios > 0 ? (criteriosEvaluados / totalCriterios) * 100 : 0;
+
+        const li = document.createElement("li");
+        li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
+        li.style.setProperty('--progress', `${porcentaje}%`);
+        
+        li.innerHTML = `
+            <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
+                <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${alumno.nombre}</span>
+                <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts (${criteriosEvaluados}/${totalCriterios})</span>
+            </div>
+            <button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno('${alumno.id}')">×</button>
+        `;
+        lista.appendChild(li);
+    });
+}
 
     function actualizarNombreAlumnoDirecto(id, el) {
         const alumno = datosApp.alumnos.find(a => a.id === id);
