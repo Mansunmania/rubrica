@@ -16,6 +16,23 @@
             --border: #e2e8f0;
             --text: #1e293b;
             --text-light: #64748b;
+            --sidebar-bg: #f8fafc;
+            --table-head: #f8fafc;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --success: #22c55e;
+            --border: #334155;
+            --text: #f8fafc;
+            --text-light: #94a3b8;
+            --sidebar-bg: #111827;
+            --table-head: #1e293b;
         }
 
         body {
@@ -24,6 +41,7 @@
             color: var(--text);
             margin: 0;
             padding: 20px;
+            transition: background-color 0.2s, color 0.2s;
         }
 
         .container {
@@ -63,7 +81,8 @@
             border-radius: 6px;
             border: 1px solid var(--border);
             font-size: 0.95rem;
-            background: white;
+            background: var(--card-bg);
+            color: var(--text);
             cursor: pointer;
             font-weight: 500;
         }
@@ -130,7 +149,7 @@
             border-radius: 6px;
             cursor: pointer;
             margin-bottom: 5px;
-            background: #f8fafc;
+            background: var(--sidebar-bg);
             border: 1px solid var(--border);
             transition: all 0.2s;
         }
@@ -203,10 +222,11 @@
             padding: 10px;
             text-align: left;
             vertical-align: middle;
+            color: var(--text);
         }
 
         table.matrix th {
-            background: #f8fafc;
+            background: var(--table-head);
             font-weight: 600;
             color: var(--text-light);
             position: relative;
@@ -218,7 +238,7 @@
             border-radius: 4px;
         }
         .editable-cell:focus {
-            background: white;
+            background: var(--card-bg);
             box-shadow: 0 0 0 2px var(--primary);
         }
 
@@ -230,10 +250,9 @@
             cursor: pointer;
             transition: all 0.15s;
             font-size: 0.88rem;
-            background-color: #ffffff;
         }
         .level-cell:hover {
-            background-color: #f1f5f9;
+            opacity: 0.8;
         }
 
         .add-student-box, .add-criteria-box {
@@ -247,6 +266,8 @@
             padding: 6px 10px;
             border: 1px solid var(--border);
             border-radius: 6px;
+            background: var(--card-bg);
+            color: var(--text);
         }
 
         .col-header-tools {
@@ -260,6 +281,10 @@
             width: 50px;
             padding: 2px;
             text-align: right;
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -269,15 +294,16 @@
     <header>
         <h1 id="titulo-rubrica" contenteditable="true" onblur="actualizarTituloRubrica(this)">Rúbrica de Recuperaciones</h1>
         <div class="controls">
-            <button id="btn-modo" class="btn-mode" onclick="toggleModoEdicion()">✏️ Modo Edición Textos: OFF</button>
+            <button id="btn-dark" onclick="toggleDarkMode()">🌙</button>
+            <button id="btn-modo" class="btn-mode" onclick="toggleModoEdicion()">✏️ Edición: OFF</button>
             <button onclick="exportarJSON()" class="btn-primary">💾 Exportar JSON</button>
-            <label for="import-file" class="btn-primary" style="padding: 8px 12px; border-radius: 6px; background: #475569; color: white; cursor: pointer; font-size: 0.95rem;">📁 Cargar JSON</label>
+            <label for="import-file" class="btn-primary" style="padding: 8px 12px; border-radius: 6px; background: #475569; color: white; cursor: pointer; font-size: 0.95rem;">📁 Cargar</label>
             <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importarJSON(event)">
         </div>
     </header>
 
     <div id="banner-modo" style="display: none; background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem;">
-        ⚠️ <strong>Modo Edición de Textos Activado:</strong> Haz clic en cualquier celda, título o nombre de alumno para modificar su texto. Vuelve a pulsar el botón superior para regresar al modo de calificación normal.
+        ⚠️ <strong>Modo Edición de Textos Activado:</strong> Haz clic en cualquier celda, título o nombre de alumno para modificar su texto.
     </div>
 
     <div class="main-layout">
@@ -303,8 +329,8 @@
             </div>
 
             <div class="add-criteria-box">
-                <button onclick="agregarCriterio()" class="btn-primary">+ Añadir Criterio (Fila)</button>
-                <button onclick="agregarNivel()" class="btn-primary" style="margin-left: auto;">+ Añadir Nivel (Columna)</button>
+                <button onclick="agregarCriterio()" class="btn-primary">+ Añadir Criterio</button>
+                <button onclick="agregarNivel()" class="btn-primary" style="margin-left: auto;">+ Añadir Nivel</button>
             </div>
         </div>
     </div>
@@ -332,12 +358,43 @@
 
     let alumnoActualId = "a1";
     let modoEdicionTextos = false;
+    let cambiosSinGuardar = false;
+
+    // Detectar cierre o recarga de pestaña
+    window.addEventListener("beforeunload", function (e) {
+        if (cambiosSinGuardar) {
+            e.preventDefault();
+            e.returnValue = "";
+        }
+    });
+
+    function marcarModificado() {
+        cambiosSinGuardar = true;
+    }
 
     function init() {
+        // Cargar preferencia de modo oscuro guardada
+        if (localStorage.getItem("darkMode") === "true") {
+            document.documentElement.setAttribute("data-theme", "dark");
+            document.getElementById("btn-dark").innerText = "☀️";
+        }
         document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica;
         renderizarAlumnos();
         if (datosApp.alumnos.length > 0) {
             seleccionarAlumno(datosApp.alumnos[0].id);
+        }
+    }
+
+    function toggleDarkMode() {
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        if (isDark) {
+            document.documentElement.removeAttribute("data-theme");
+            localStorage.setItem("darkMode", "false");
+            document.getElementById("btn-dark").innerText = "🌙";
+        } else {
+            document.documentElement.setAttribute("data-theme", "dark");
+            localStorage.setItem("darkMode", "true");
+            document.getElementById("btn-dark").innerText = "☀️";
         }
     }
 
@@ -346,11 +403,11 @@
         const btn = document.getElementById("btn-modo");
         const banner = document.getElementById("banner-modo");
         if (modoEdicionTextos) {
-            btn.innerText = "✅ Modo Edición Textos: ON";
+            btn.innerText = "✅ Edición: ON";
             btn.classList.add("active-edit");
             banner.style.display = "block";
         } else {
-            btn.innerText = "✏️ Modo Edición Textos: OFF";
+            btn.innerText = "✏️ Edición: OFF";
             btn.classList.remove("active-edit");
             banner.style.display = "none";
         }
@@ -360,6 +417,7 @@
 
     function actualizarTituloRubrica(elemento) {
         datosApp.tituloRubrica = elemento.innerText;
+        marcarModificado();
     }
 
     function renderizarAlumnos() {
@@ -388,6 +446,7 @@
             if (id === alumnoActualId) {
                 document.getElementById("titulo-alumno").innerText = alumno.nombre;
             }
+            marcarModificado();
         }
     }
 
@@ -418,7 +477,6 @@
         const tabla = document.getElementById("tabla-matriz");
         tabla.innerHTML = "";
 
-        // 1. Cabecera (Niveles)
         let thead = document.createElement("thead");
         let trHead = document.createElement("tr");
         trHead.innerHTML = `<th class="criterion-col">Criterio</th>`;
@@ -437,7 +495,6 @@
         thead.appendChild(trHead);
         tabla.appendChild(thead);
 
-        // 2. Cuerpo (Criterios y Celdas de descriptores)
         let tbody = document.createElement("tbody");
         const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
         const totalNiveles = datosApp.niveles.length;
@@ -460,10 +517,12 @@
                 let estiloColor = "";
                 if (estaSeleccionado) {
                     if (totalNiveles <= 1) {
-                        estiloColor = "background-color: #dcfce7; box-shadow: inset 0 0 0 2px #16a34a; font-weight: 500;";
+                        estiloColor = "background-color: rgba(22, 163, 74, 0.25); box-shadow: inset 0 0 0 2px var(--success); font-weight: 500;";
                     } else {
+                        // Gradiente adaptado dinámicamente según la cantidad de columnas
                         const hue = 120 - (colIndex / (totalNiveles - 1)) * 120;
-                        estiloColor = "background-color: hsl(" + hue + ", 70%, 88%); box-shadow: inset 0 0 0 2px hsl(" + hue + ", 80%, 35%); font-weight: 500;";
+                        const lightness = document.documentElement.getAttribute("data-theme") === "dark" ? "25%" : "85%";
+                        estiloColor = "background-color: hsl(" + hue + ", 70%, " + lightness + "); box-shadow: inset 0 0 0 2px hsl(" + hue + ", 80%, 45%); font-weight: 500;";
                     }
                 }
 
@@ -494,11 +553,13 @@
         renderizarMatriz();
         renderizarAlumnos();
         document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+        marcarModificado();
     }
 
     function actualizarNombreNivel(id, el) {
         const n = datosApp.niveles.find(item => item.id === id);
         if(n) n.nombre = el.innerText;
+        marcarModificado();
     }
     function actualizarValorNivel(id, val) {
         const n = datosApp.niveles.find(item => item.id === id);
@@ -506,14 +567,17 @@
         renderizarAlumnos();
         const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
         if(alumno) document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+        marcarModificado();
     }
     function actualizarNombreCriterio(id, el) {
         const c = datosApp.criterios.find(item => item.id === id);
         if(c) c.nombre = el.innerText;
+        marcarModificado();
     }
     function actualizarDescripcion(criterioId, nivelId, el) {
         const c = datosApp.criterios.find(item => item.id === criterioId);
         if(c) c.descripciones[nivelId] = el.innerText;
+        marcarModificado();
     }
 
     function agregarAlumno() {
@@ -524,6 +588,7 @@
         datosApp.alumnos.push({ id: nuevoId, nombre: nombre, calificaciones: {} });
         input.value = "";
         seleccionarAlumno(nuevoId);
+        marcarModificado();
     }
 
     function eliminarAlumno(id) {
@@ -536,14 +601,16 @@
             document.getElementById("tabla-matriz").innerHTML = "";
             renderizarAlumnos();
         }
+        marcarModificado();
     }
 
     function agregarCriterio() {
         const nuevoId = "c_" + Date.now();
         let descripcionesVacias = {};
-        datosApp.niveles.forEach(n => descripcionesVacias[n.id] = "Nuevo descriptor...");
+        datosApp.niveles.forEach(n => descripcionesVasks[n.id] = "Nuevo descriptor...");
         datosApp.criterios.push({ id: nuevoId, nombre: "Nuevo Criterio", descripciones: descripcionesVacias });
         renderizarMatriz();
+        marcarModificado();
     }
 
     function eliminarCriterio(id) {
@@ -551,6 +618,7 @@
         datosApp.alumnos.forEach(a => delete a.calificaciones[id]);
         renderizarMatriz();
         renderizarAlumnos();
+        marcarModificado();
     }
 
     function agregarNivel() {
@@ -558,6 +626,7 @@
         datosApp.niveles.push({ id: nuevoId, nombre: "Nivel", valor: 1.0 });
         datosApp.criterios.forEach(c => c.descripciones[nuevoId] = "Descriptor...");
         renderizarMatriz();
+        marcarModificado();
     }
 
     function eliminarNivel(id) {
@@ -574,6 +643,7 @@
         });
         renderizarMatriz();
         renderizarAlumnos();
+        marcarModificado();
     }
 
     function exportarJSON() {
@@ -584,6 +654,8 @@
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();
+        // Una vez exportado, asumimos que se han guardado los cambios
+        cambiosSinGuardar = false;
     }
 
     function importarJSON(event) {
@@ -598,6 +670,7 @@
                     if (datosApp.alumnos && datosApp.alumnos.length > 0) {
                         seleccionarAlumno(datosApp.alumnos[0].id);
                     }
+                    cambiosSinGuardar = false;
                     alert("¡Rúbrica cargada correctamente!");
                 } catch (error) {
                     alert("Error al parsear el archivo JSON.");
