@@ -644,15 +644,24 @@
     }
 
     function exportarJSON() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(datosApp, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", "rubrica_configurada.json");
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-        cambiosSinGuardar = false;
+    let nombreSugerido = (datosApp.tituloRubrica || "rubrica").toLowerCase().replace(/[^a-z0-9]/g, "_");
+    let nombreArchivo = prompt("Introduce el nombre para el archivo JSON:", nombreSugerido);
+    
+    if (!nombreArchivo) return; // Si el usuario cancela, no hace nada
+    
+    if (!nombreArchivo.endsWith(".json")) {
+        nombreArchivo += ".json";
     }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(datosApp, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", nombreArchivo);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    cambiosSinGuardar = false;
+}
 
     function importarJSON(event) {
         const fileReader = new FileReader();
