@@ -323,7 +323,7 @@
             <button id="btn-dark" onclick="toggleDarkMode()">🌙</button>
             <button id="btn-modo" class="btn-mode" onclick="toggleModoEdicion()">✏️ Edición: OFF</button>
             <button onclick="exportarJSON()" class="btn-primary">💾 Exportar JSON</button>
-            <button onclick="exportarParaNotion()" class="btn-primary" style="background: #0ea5e9;">📊 Exportar para Notion</button>
+            <button onclick="exportarCSVparaNotion()" class="btn-primary" style="background: #0ea5e9;">📑 CSV → Notion</button>
             <label for="import-file" class="btn-primary" style="padding: 8px 12px; border-radius: 6px; background: #475569; color: white; cursor: pointer; font-size: 0.95rem;">📁 Cargar</label>
             <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importarJSON(event)">
         </div>
@@ -445,38 +445,43 @@
         marcarModificado();
     }
 
-    function exportarParaNotion() {
-    // Aplanar los datos para que Notion los interprete como una tabla clara
-    const datosPlanos = datosApp.alumnos.map(alumno => {
-        let fila = {
-            "Alumno": alumno.nombre,
-            "Rúbrica": datosApp.tituloRubrica,
-            "Nota Total": parseFloat(calcularNotaTotal(alumno).toFixed(1))
-        };
+function exportarCSVparaNotion() {
+    let filas = [];
+    
+    // Cabeceras del CSV (Asegúrate de que la primera coincida con el nombre de la propiedad en Notion, ej: "Nombre")
+    let cabeceras = ["Nombre", "Nota Total"];
+    datosApp.criterios.forEach(crit => {
+        cabeceras.push(crit.nombre);
+    });
+    filas.push(cabeceras.map(c => `"${c.replace(/"/g, '""')}"`).join(","));
 
-        // Añadir cada criterio como una columna independiente con el nivel obtenido o puntos
-        datosApp.criterios.forEach((crit, index) => {
+    // Rellenar los datos de cada alumno
+    datosApp.alumnos.forEach(alumno => {
+        let notaTotal = calcularNotaTotal(alumno).toFixed(1);
+        let fila = [`"${alumno.nombre.replace(/"/g, '""')}"`, `"${notaTotal}"`];
+
+        datosApp.criterios.forEach(crit => {
             const nivelId = alumno.calificaciones[crit.id];
             const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
-            
-            // Guardamos el nombre del nivel (ej: "Excelente") o "-" si no está evaluado
-            fila[`Criterio ${index + 1}: ${crit.nombre}`] = nivelObj ? nivelObj.nombre : "Sin calificar";
+            let valorCelda = nivelObj ? nivelObj.nombre : "";
+            fila.push(`"${valorCelda.replace(/"/g, '""')}"`);
         });
 
-        return fila;
+        filas.push(fila.join(","));
     });
 
-    let nombreSugerido = (datosApp.tituloRubrica || "rubrica").toLowerCase().replace(/[^a-z0-9]/g, "_") + "_notion";
-    let nombreArchivo = prompt("Nombre para el archivo JSON compatible con Notion:", nombreSugerido);
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + filas.join("\n");
+    let nombreSugerido = (datosApp.tituloRubrica || "rubrica").toLowerCase().replace(/[^a-z0-9]/g, "_") + "_notion.csv";
+    let nombreArchivo = prompt("Nombre para el archivo CSV compatible con Notion:", nombreSugerido);
     
     if (!nombreArchivo) return;
-    if (!nombreArchivo.endsWith(".json")) {
-        nombreArchivo += ".json";
+    if (!nombreArchivo.endsWith(".csv")) {
+        nombreArchivo += ".csv";
     }
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(datosPlanos, null, 2));
+    const encodedUri = encodeURI(csvContent);
     const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("href", encodedUri);
     downloadAnchor.setAttribute("download", nombreArchivo);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
