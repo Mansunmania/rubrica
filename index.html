@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Rúbricas Dinámico</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --success: #16a34a;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-light: #64748b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            outline: none;
+            border-bottom: 1px dashed transparent;
+        }
+        h1:hover {
+            border-bottom-color: var(--border);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 0.95rem;
+            background: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button.btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+        }
+        button.btn-primary:hover { background: var(--primary-hover); }
+
+        button.btn-danger {
+            background: var(--danger);
+            color: white;
+            border: none;
+        }
+        button.btn-danger:hover { background: var(--danger-hover); }
+
+        button.btn-mode {
+            background: #f59e0b;
+            color: white;
+            border: none;
+        }
+        button.btn-mode.active-edit {
+            background: #d97706;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .sidebar h3 {
+            margin-top: 0;
+            font-size: 1rem;
+            color: var(--text-light);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .student-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 450px;
+            overflow-y: auto;
+        }
+
+        .student-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 5px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .student-item:hover {
+            border-color: var(--primary);
+        }
+
+        .student-item.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .student-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+        }
+
+        .student-name-text {
+            font-weight: 500;
+            outline: none;
+            border-bottom: 1px dashed transparent;
+        }
+        .student-item.active .student-name-text {
+            border-bottom-color: rgba(255,255,255,0.6);
+        }
+        .student-name-text:focus {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+
+        .student-score {
+            font-size: 0.8rem;
+            opacity: 0.85;
+        }
+
+        .evaluation-panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .current-student-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .current-student-title {
+            margin: 0;
+            font-size: 1.25rem;
+            color: var(--primary);
+        }
+
+        table.matrix {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table.matrix th, table.matrix td {
+            border: 1px solid var(--border);
+            padding: 10px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        table.matrix th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: var(--text-light);
+            position: relative;
+        }
+
+        .editable-cell {
+            outline: none;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        .editable-cell:focus {
+            background: white;
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+
+        .criterion-col {
+            width: 20%;
+        }
+
+        .level-cell {
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 0.88rem;
+            background-color: #ffffff;
+        }
+        .level-cell:hover {
+            background-color: #f1f5f9;
+        }
+
+        .add-student-box, .add-criteria-box {
+            display: flex;
+            gap: 5px;
+            margin-top: 15px;
+        }
+
+        .add-student-box input, .add-criteria-box input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .col-header-tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .col-header-tools input {
+            width: 50px;
+            padding: 2px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1 id="titulo-rubrica" contenteditable="true" onblur="actualizarTituloRubrica(this)">Rúbrica de Recuperaciones</h1>
+        <div class="controls">
+            <button id="btn-modo" class="btn-mode" onclick="toggleModoEdicion()">✏️ Modo Edición Textos: OFF</button>
+            <button onclick="exportarJSON()" class="btn-primary">💾 Exportar JSON</button>
+            <label for="import-file" class="btn-primary" style="padding: 8px 12px; border-radius: 6px; background: #475569; color: white; cursor: pointer; font-size: 0.95rem;">📁 Cargar JSON</label>
+            <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importarJSON(event)">
+        </div>
+    </header>
+
+    <div id="banner-modo" style="display: none; background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem;">
+        ⚠️ <strong>Modo Edición de Textos Activado:</strong> Haz clic en cualquier celda, título o nombre de alumno para modificar su texto. Vuelve a pulsar el botón superior para regresar al modo de calificación normal.
+    </div>
+
+    <div class="main-layout">
+        <!-- Sidebar Alumnos -->
+        <div class="sidebar">
+            <h3>Alumnos</h3>
+            <ul id="lista-alumnos" class="student-list"></ul>
+            <div class="add-student-box">
+                <input type="text" id="nuevo-alumno-nombre" placeholder="Nombre alumno..." onkeypress="if(event.key === 'Enter') agregarAlumno()">
+                <button onclick="agregarAlumno()" class="btn-primary">+</button>
+            </div>
+        </div>
+
+        <!-- Panel de Rúbrica Matriz -->
+        <div class="evaluation-panel">
+            <div class="current-student-header">
+                <h2 id="titulo-alumno" class="current-student-title">Selecciona un alumno</h2>
+                <div id="nota-total-alumno" style="font-weight: bold; font-size: 1.1rem; color: var(--success);">Total: 0 pts</div>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="matrix" id="tabla-matriz"></table>
+            </div>
+
+            <div class="add-criteria-box">
+                <button onclick="agregarCriterio()" class="btn-primary">+ Añadir Criterio (Fila)</button>
+                <button onclick="agregarNivel()" class="btn-primary" style="margin-left: auto;">+ Añadir Nivel (Columna)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let datosApp = {
+        tituloRubrica: "Rúbrica de Recuperaciones",
+        niveles: [
+            { id: "exc", nombre: "Excelente", valor: 2.0 },
+            { id: "bien", nombre: "Bien", valor: 1.2 },
+            { id: "reg", nombre: "Regular", valor: 0.0 }
+        ],
+        criterios: [
+            { id: "c1", nombre: "Entrega", descripciones: { exc: "Entrega en fecha", bien: "Semana pendientes", reg: "Fuera de plazo" } },
+            { id: "c2", nombre: "Contenido", descripciones: { exc: "Completo y ordenado", bien: "2-4 sin responder", reg: "Más de 4 sin contestar" } },
+            { id: "c3", nombre: "Presentación", descripciones: { exc: "Buen esfuerzo y caligrafía", bien: "Mejorable en orden", reg: "Faltas graves de presentación" } },
+            { id: "c4", nombre: "Ortografía", descripciones: { exc: "Sin faltas relevantes", bien: "Algunas faltas", reg: "Poco interés y visibles" } }
+        ],
+        alumnos: [
+            { id: "a1", nombre: "Alumno 1", calificaciones: {} },
+            { id: "a2", nombre: "Alumno 2", calificaciones: {} }
+        ]
+    };
+
+    let alumnoActualId = "a1";
+    let modoEdicionTextos = false;
+
+    function init() {
+        document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica;
+        renderizarAlumnos();
+        if (datosApp.alumnos.length > 0) {
+            seleccionarAlumno(datosApp.alumnos[0].id);
+        }
+    }
+
+    function toggleModoEdicion() {
+        modoEdicionTextos = !modoEdicionTextos;
+        const btn = document.getElementById("btn-modo");
+        const banner = document.getElementById("banner-modo");
+        if (modoEdicionTextos) {
+            btn.innerText = "✅ Modo Edición Textos: ON";
+            btn.classList.add("active-edit");
+            banner.style.display = "block";
+        } else {
+            btn.innerText = "✏️ Modo Edición Textos: OFF";
+            btn.classList.remove("active-edit");
+            banner.style.display = "none";
+        }
+        renderizarMatriz();
+        renderizarAlumnos();
+    }
+
+    function actualizarTituloRubrica(elemento) {
+        datosApp.tituloRubrica = elemento.innerText;
+    }
+
+    function renderizarAlumnos() {
+        const lista = document.getElementById("lista-alumnos");
+        lista.innerHTML = "";
+        datosApp.alumnos.forEach(alumno => {
+            const notaTotal = calcularNotaTotal(alumno);
+            const li = document.createElement("li");
+            li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
+            
+            li.innerHTML = `
+                <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
+                    <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${alumno.nombre}</span>
+                    <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts</span>
+                </div>
+                <button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno('${alumno.id}')">×</button>
+            `;
+            lista.appendChild(li);
+        });
+    }
+
+    function actualizarNombreAlumnoDirecto(id, el) {
+        const alumno = datosApp.alumnos.find(a => a.id === id);
+        if (alumno) {
+            alumno.nombre = el.innerText;
+            if (id === alumnoActualId) {
+                document.getElementById("titulo-alumno").innerText = alumno.nombre;
+            }
+        }
+    }
+
+    function calcularNotaTotal(alumno) {
+        let total = 0;
+        datosApp.criterios.forEach(crit => {
+            const nivelId = alumno.calificaciones[crit.id];
+            if (nivelId) {
+                const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
+                if (nivelObj) total += nivelObj.valor;
+            }
+        });
+        return total;
+    }
+
+    function seleccionarAlumno(id) {
+        alumnoActualId = id;
+        renderizarAlumnos();
+        const alumno = datosApp.alumnos.find(a => a.id === id);
+        if (alumno) {
+            document.getElementById("titulo-alumno").innerText = alumno.nombre;
+            document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+        }
+        renderizarMatriz();
+    }
+
+    function renderizarMatriz() {
+        const tabla = document.getElementById("tabla-matriz");
+        tabla.innerHTML = "";
+
+        // 1. Cabecera (Niveles)
+        let thead = document.createElement("thead");
+        let trHead = document.createElement("tr");
+        trHead.innerHTML = `<th class="criterion-col">Criterio</th>`;
+        
+        datosApp.niveles.forEach((nivel) => {
+            trHead.innerHTML += `
+                <th>
+                    <div class="col-header-tools">
+                        <span ${modoEdicionTextos ? 'contenteditable="true" class="editable-cell" onblur="actualizarNombreNivel(\'' + nivel.id + '\', this)"' : ''}>${nivel.nombre}</span>
+                        <input type="number" step="0.1" value="${nivel.valor}" onchange="actualizarValorNivel('${nivel.id}', this.value)" title="Puntuación">
+                        ${modoEdicionTextos ? '<button class="btn-danger" style="padding: 1px 4px; font-size: 0.7rem;" onclick="eliminarNivel(\'' + nivel.id + '\')">×</button>' : ''}
+                    </div>
+                </th>
+            `;
+        });
+        thead.appendChild(trHead);
+        tabla.appendChild(thead);
+
+        // 2. Cuerpo (Criterios y Celdas de descriptores)
+        let tbody = document.createElement("tbody");
+        const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
+        const totalNiveles = datosApp.niveles.length;
+
+        datosApp.criterios.forEach(crit => {
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 5px;">
+                        <span ${modoEdicionTextos ? 'contenteditable="true" class="editable-cell" style="font-weight: 600;" onblur="actualizarNombreCriterio(\'' + crit.id + '\', this)"' : 'style="font-weight: 600;"'}>${crit.nombre}</span>
+                        ${modoEdicionTextos ? '<button class="btn-danger" style="padding: 1px 4px; font-size: 0.7rem;" onclick="eliminarCriterio(\'' + crit.id + '\')">×</button>' : ''}
+                    </div>
+                </td>
+            `;
+
+            datosApp.niveles.forEach((nivel, colIndex) => {
+                const descActual = (crit.descripciones[nivel.id] || "Descripción...");
+                const estaSeleccionado = alumno && alumno.calificaciones[crit.id] === nivel.id;
+                
+                let estiloColor = "";
+                if (estaSeleccionado) {
+                    if (totalNiveles <= 1) {
+                        estiloColor = "background-color: #dcfce7; box-shadow: inset 0 0 0 2px #16a34a; font-weight: 500;";
+                    } else {
+                        const hue = 120 - (colIndex / (totalNiveles - 1)) * 120;
+                        estiloColor = "background-color: hsl(" + hue + ", 70%, 88%); box-shadow: inset 0 0 0 2px hsl(" + hue + ", 80%, 35%); font-weight: 500;";
+                    }
+                }
+
+                tr.innerHTML += `
+                    <td class="level-cell" style="${estiloColor}" onclick="manejarClickCelda('${crit.id}', '${nivel.id}')">
+                        <div ${modoEdicionTextos ? 'contenteditable="true" class="editable-cell" onblur="actualizarDescripcion(\'' + crit.id + '\', \'' + nivel.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${descActual}</div>
+                    </td>
+                `;
+            });
+            tbody.appendChild(tr);
+        });
+        tabla.appendChild(tbody);
+    }
+
+    function manejarClickCelda(criterioId, nivelId) {
+        if (modoEdicionTextos) return;
+        calificar(criterioId, nivelId);
+    }
+
+    function calificar(criterioId, nivelId) {
+        const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
+        if (!alumno) return;
+        if (alumno.calificaciones[criterioId] === nivelId) {
+            delete alumno.calificaciones[criterioId]; 
+        } else {
+            alumno.calificaciones[criterioId] = nivelId;
+        }
+        renderizarMatriz();
+        renderizarAlumnos();
+        document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+    }
+
+    function actualizarNombreNivel(id, el) {
+        const n = datosApp.niveles.find(item => item.id === id);
+        if(n) n.nombre = el.innerText;
+    }
+    function actualizarValorNivel(id, val) {
+        const n = datosApp.niveles.find(item => item.id === id);
+        if(n) n.valor = parseFloat(val) || 0;
+        renderizarAlumnos();
+        const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
+        if(alumno) document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+    }
+    function actualizarNombreCriterio(id, el) {
+        const c = datosApp.criterios.find(item => item.id === id);
+        if(c) c.nombre = el.innerText;
+    }
+    function actualizarDescripcion(criterioId, nivelId, el) {
+        const c = datosApp.criterios.find(item => item.id === criterioId);
+        if(c) c.descripciones[nivelId] = el.innerText;
+    }
+
+    function agregarAlumno() {
+        const input = document.getElementById("nuevo-alumno-nombre");
+        const nombre = input.value.trim();
+        if (!nombre) return;
+        const nuevoId = "a_" + Date.now();
+        datosApp.alumnos.push({ id: nuevoId, nombre: nombre, calificaciones: {} });
+        input.value = "";
+        seleccionarAlumno(nuevoId);
+    }
+
+    function eliminarAlumno(id) {
+        datosApp.alumnos = datosApp.alumnos.filter(a => a.id !== id);
+        if (datosApp.alumnos.length > 0) {
+            seleccionarAlumno(datosApp.alumnos[0].id);
+        } else {
+            alumnoActualId = null;
+            document.getElementById("titulo-alumno").innerText = "Sin alumnos";
+            document.getElementById("tabla-matriz").innerHTML = "";
+            renderizarAlumnos();
+        }
+    }
+
+    function agregarCriterio() {
+        const nuevoId = "c_" + Date.now();
+        let descripcionesVacias = {};
+        datosApp.niveles.forEach(n => descripcionesVacias[n.id] = "Nuevo descriptor...");
+        datosApp.criterios.push({ id: nuevoId, nombre: "Nuevo Criterio", descripciones: descripcionesVacias });
+        renderizarMatriz();
+    }
+
+    function eliminarCriterio(id) {
+        datosApp.criterios = datosApp.criterios.filter(c => c.id !== id);
+        datosApp.alumnos.forEach(a => delete a.calificaciones[id]);
+        renderizarMatriz();
+        renderizarAlumnos();
+    }
+
+    function agregarNivel() {
+        const nuevoId = "n_" + Date.now();
+        datosApp.niveles.push({ id: nuevoId, nombre: "Nivel", valor: 1.0 });
+        datosApp.criterios.forEach(c => c.descripciones[nuevoId] = "Descriptor...");
+        renderizarMatriz();
+    }
+
+    function eliminarNivel(id) {
+        if (datosApp.niveles.length <= 1) {
+            alert("Debe haber al menos un nivel.");
+            return;
+        }
+        datosApp.niveles = datosApp.niveles.filter(n => n.id !== id);
+        datosApp.criterios.forEach(c => delete c.descripciones[id]);
+        datosApp.alumnos.forEach(a => {
+            for (let critId in a.calificaciones) {
+                if (a.calificaciones[critId] === id) delete a.calificaciones[critId];
+            }
+        });
+        renderizarMatriz();
+        renderizarAlumnos();
+    }
+
+    function exportarJSON() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(datosApp, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "rubrica_configurada.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    function importarJSON(event) {
+        const fileReader = new FileReader();
+        if (event.target.files[0]) {
+            fileReader.readAsText(event.target.files[0], "UTF-8");
+            fileReader.onload = (e) => {
+                try {
+                    datosApp = JSON.parse(e.target.result);
+                    document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
+                    renderizarAlumnos();
+                    if (datosApp.alumnos && datosApp.alumnos.length > 0) {
+                        seleccionarAlumno(datosApp.alumnos[0].id);
+                    }
+                    alert("¡Rúbrica cargada correctamente!");
+                } catch (error) {
+                    alert("Error al parsear el archivo JSON.");
+                }
+            };
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>
