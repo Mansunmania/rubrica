@@ -744,26 +744,33 @@ function exportarCSVparaNotion() {
     cambiosSinGuardar = false;
 }
 
-    function importarJSON(event) {
-        const fileReader = new FileReader();
-        if (event.target.files[0]) {
-            fileReader.readAsText(event.target.files[0], "UTF-8");
-            fileReader.onload = (e) => {
-                try {
-                    datosApp = JSON.parse(e.target.result);
-                    document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
-                    renderizarAlumnos();
-                    if (datosApp.alumnos && datosApp.alumnos.length > 0) {
-                        seleccionarAlumno(datosApp.alumnos[0].id);
-                    }
-                    cambiosSinGuardar = false;
-                    alert("¡Rúbrica cargada correctamente!");
-                } catch (error) {
-                    alert("Error al parsear el archivo JSON.");
-                }
-            };
-        }
+function importarJSON(event) {
+    if (cambiosSinGuardar && !confirm("Tienes cambios sin guardar. ¿Seguro que quieres cargar otro archivo y perder los cambios actuales?")) {
+        event.target.value = ""; // Limpia el input para permitir volver a seleccionarlo si se arrepienten
+        return;
     }
+
+    if (event.target.files[0]) {
+        const fileReader = new FileReader();
+        fileReader.readAsText(event.target.files[0], "UTF-8");
+        fileReader.onload = (e) => {
+            try {
+                datosApp = JSON.parse(e.target.result);
+                document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
+                renderizarAlumnos();
+                if (datosApp.alumnos && datosApp.alumnos.length > 0) {
+                    seleccionarAlumno(datosApp.alumnos[0].id);
+                }
+                cambiosSinGuardar = false;
+                alert("¡Rúbrica cargada correctamente!");
+            } catch (error) {
+                alert("Error al parsear el archivo JSON.");
+            } finally {
+                event.target.value = ""; // Limpia el input al terminar para que se pueda volver a cargar el mismo archivo si se desea
+            }
+        };
+    }
+}
 
     init();
 </script>
