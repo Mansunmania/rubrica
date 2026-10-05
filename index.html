@@ -113,7 +113,7 @@
 
         .main-layout {
             display: grid;
-            grid-template-columns: 320px 1fr;
+            grid-template-columns: 310px 1fr;
             gap: 20px;
         }
 
@@ -236,7 +236,7 @@
         .student-name-text:focus {
             background: rgba(255,255,255,0.2);
             border-radius: 3px;
-            white-space: normal;
+            white-space: nowrap;
         }
 
         .student-score {
@@ -312,17 +312,11 @@
 
         .add-student-box, .add-criteria-box {
             display: flex;
-            flex-direction: column;
-            gap: 6px;
+            gap: 5px;
             margin-top: 15px;
         }
 
-        .add-student-inputs {
-            display: flex;
-            gap: 5px;
-        }
-
-        .add-student-inputs input, .add-criteria-box input {
+        .add-student-box input, .add-criteria-box input {
             flex: 1;
             padding: 6px 10px;
             border: 1px solid var(--border);
@@ -425,11 +419,8 @@
             <ul id="lista-alumnos" class="student-list" ondragover="handleListDragOver(event)"></ul>
             
             <div class="add-student-box">
-                <div class="add-student-inputs">
-                    <input type="text" id="nuevo-alumno-apellidos" placeholder="Apellidos..." onkeydown="manejarEnterAlumno(event)">
-                    <input type="text" id="nuevo-alumno-nombre" placeholder="Nombre..." onkeydown="manejarEnterAlumno(event)">
-                </div>
-                <button onclick="agregarAlumno()" class="btn-primary" style="width: 100%;">+ Añadir Alumno</button>
+                <input type="text" id="nuevo-alumno-input" placeholder="Apellidos, Nombre..." onkeydown="manejarEnterAlumno(event)">
+                <button onclick="agregarAlumno()" class="btn-primary">+</button>
             </div>
         </div>
 
@@ -444,7 +435,7 @@
                 <table class="matrix" id="tabla-matriz"></table>
             </div>
 
-            <div class="add-criteria-box" style="flex-direction: row;">
+            <div class="add-criteria-box">
                 <button onclick="agregarCriterio()" class="btn-primary">+ Añadir Criterio</button>
                 <button onclick="agregarNivel()" class="btn-primary" style="margin-left: auto;">+ Añadir Nivel</button>
             </div>
@@ -456,7 +447,7 @@
 <div id="modal-masivo" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0;">Añadir Alumnos en Masa</h3>
-        <p style="font-size: 0.85rem; color: var(--text-light);">Pega tu listado. Formato recomendado (Apellidos, Nombre por línea):</p>
+        <p style="font-size: 0.85rem; color: var(--text-light);">Pega tu listado (Formato: Apellidos, Nombre por línea):</p>
         <textarea id="textarea-masivo" placeholder="Pérez Aguado, Pepito&#10;García López, María&#10;Ruiz Gómez, Juan"></textarea>
         <div class="modal-buttons">
             <button onclick="cerrarModalMasivo()">Cancelar</button>
@@ -698,7 +689,7 @@
                     <span class="student-index">${index + 1}.</span>
                     ${handleHtml}
                     <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
-                        <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${nombreCompleto(alumno)}</span>
+                        <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onkeydown="manejarKeydownEdicion(event, this)" onclick="event.stopPropagation()"' : ''}>${nombreCompleto(alumno)}</span>
                         <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts</span>
                     </div>
                 </div>
@@ -708,19 +699,30 @@
         });
     }
 
+    function manejarKeydownEdicion(event, el) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            el.blur(); // Fuerza el guardado y quita el foco sin hacer salto de línea
+        }
+    }
+
     function actualizarNombreAlumnoDirecto(id, el) {
         const alumno = datosApp.alumnos.find(a => a.id === id);
         if (alumno) {
             let texto = el.innerText.trim();
-            // Si el usuario edita directamente y usa coma, lo partimos
             if (texto.includes(',')) {
                 let partes = texto.split(',');
                 alumno.apellidos = partes[0].trim();
                 alumno.nombre = partes.slice(1).join(',').trim();
             } else {
-                // Si no usa coma, lo ponemos todo como apellidos o nombre según prefiera, por defecto apellidos
-                alumno.apellidos = texto;
-                alumno.nombre = "";
+                let partes = texto.split(/\s+/);
+                if (partes.length === 1) {
+                    alumno.apellidos = partes[0];
+                    alumno.nombre = "";
+                } else {
+                    alumno.nombre = partes[partes.length - 1];
+                    alumno.apellidos = partes.slice(0, partes.length - 1).join(' ');
+                }
             }
             if (datosApp.ordenAutomatico) {
                 ordenarAlumnos('apellido', false);
@@ -861,7 +863,7 @@
         marcarModificado();
     }
 
-    // --- GESTIÓN DE ALUMNOS (CAMPOS SEPARADOS Y ENTER) ---
+    // --- GESTIÓN DE ALUMNOS (INPUT ÚNICO Y ENTER) ---
     function manejarEnterAlumno(event) {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -870,19 +872,32 @@
     }
 
     function agregarAlumno() {
-        const inputApellidos = document.getElementById("nuevo-alumno-apellidos");
-        const inputNombre = document.getElementById("nuevo-alumno-nombre");
-        const apellidos = inputApellidos.value.trim();
-        const nombre = inputNombre.value.trim();
+        const input = document.getElementById("nuevo-alumno-input");
+        let texto = input.value.trim();
+        if (!texto) return;
 
-        if (!apellidos && !nombre) return;
+        let apellidos = "";
+        let nombre = "";
+
+        if (texto.includes(',')) {
+            let partes = texto.split(',');
+            apellidos = partes[0].trim();
+            nombre = partes.slice(1).join(',').trim();
+        } else {
+            let partes = texto.split(/\s+/);
+            if (partes.length === 1) {
+                apellidos = partes[0];
+            } else {
+                nombre = partes[partes.length - 1];
+                apellidos = partes.slice(0, partes.length - 1).join(' ');
+            }
+        }
 
         const nuevoId = "a_" + Date.now();
         datosApp.alumnos.push({ id: nuevoId, apellidos: apellidos, nombre: nombre, calificaciones: {} });
         
-        inputApellidos.value = "";
-        inputNombre.value = "";
-        inputApellidos.focus();
+        input.value = "";
+        input.focus();
         
         if (datosApp.ordenAutomatico) {
             ordenarAlumnos('apellido', false);
@@ -914,12 +929,10 @@
                 let nombre = "";
 
                 if (lineaLimpia.includes(',')) {
-                    // Formato "Apellidos, Nombre"
                     let partes = lineaLimpia.split(',');
                     apellidos = partes[0].trim();
                     nombre = partes.slice(1).join(',').trim();
                 } else {
-                    // Si pegan en una sola línea sin coma, intentamos separar por espacios (última palabra nombre, resto apellidos o viceversa)
                     let partes = lineaLimpia.split(/\s+/);
                     if (partes.length === 1) {
                         apellidos = partes[0];
@@ -1030,7 +1043,6 @@
             fileReader.onload = (e) => {
                 try {
                     let importado = JSON.parse(e.target.result);
-                    // Compatibilidad por si el JSON antiguo guardaba 'nombre' en un solo string
                     importado.alumnos = importado.alumnos.map(a => {
                         if (a.nombre && !a.apellidos) {
                             let partes = a.nombre.split(',');
