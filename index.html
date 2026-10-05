@@ -113,7 +113,7 @@
 
         .main-layout {
             display: grid;
-            grid-template-columns: 280px 1fr;
+            grid-template-columns: 310px 1fr;
             gap: 20px;
         }
 
@@ -125,19 +125,39 @@
             height: fit-content;
         }
 
-        .sidebar h3 {
-            margin-top: 0;
-            font-size: 1rem;
-            color: var(--text-light);
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             border-bottom: 1px solid var(--border);
             padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .sidebar h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: var(--text-light);
+        }
+
+        .student-tools {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+        }
+
+        .student-tools select, .student-tools button {
+            padding: 4px 6px;
+            font-size: 0.8rem;
+            border-radius: 4px;
         }
 
         .student-list {
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: 450px;
+            max-height: 400px;
             overflow-y: auto;
         }
 
@@ -145,7 +165,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
+            padding: 8px 10px;
             border-radius: 6px;
             cursor: pointer;
             margin-bottom: 5px;
@@ -164,17 +184,50 @@
             border-color: var(--primary);
         }
 
+        .student-item.dragging {
+            opacity: 0.4;
+        }
+
+        .student-main-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .student-index {
+            font-size: 0.8rem;
+            font-weight: 600;
+            opacity: 0.7;
+            min-width: 20px;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            font-size: 1rem;
+            opacity: 0.6;
+            padding-right: 2px;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
         .student-info {
             display: flex;
             flex-direction: column;
             gap: 2px;
             flex: 1;
+            overflow: hidden;
         }
 
         .student-name-text {
             font-weight: 500;
             outline: none;
             border-bottom: 1px dashed transparent;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .student-item.active .student-name-text {
             border-bottom-color: rgba(255,255,255,0.6);
@@ -182,10 +235,11 @@
         .student-name-text:focus {
             background: rgba(255,255,255,0.2);
             border-radius: 3px;
+            white-space: normal;
         }
 
         .student-score {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             opacity: 0.85;
         }
 
@@ -286,32 +340,41 @@
             border: 1px solid var(--border);
             border-radius: 4px;
         }
-        .student-item {
-    position: relative;
-    overflow: hidden;
-    z-index: 1;
-    /* ...mantén el resto de propiedades anteriores... */
-}
 
-.student-item::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: var(--progress, 0%);
-    background-color: rgba(37, 99, 235, 0.12);
-    z-index: -1;
-    transition: width 0.3s ease;
-}
-
-[data-theme="dark"] .student-item::before {
-    background-color: rgba(59, 130, 246, 0.25);
-}
-
-.student-item.active::before {
-    background-color: rgba(255, 255, 255, 0.2);
-}
+        /* Modal Masivo */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .modal-content textarea {
+            width: 100%;
+            height: 150px;
+            padding: 8px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text);
+            border-radius: 6px;
+            margin-top: 10px;
+            resize: vertical;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -323,23 +386,38 @@
             <button id="btn-dark" onclick="toggleDarkMode()">🌙</button>
             <button id="btn-modo" class="btn-mode" onclick="toggleModoEdicion()">✏️ Edición: OFF</button>
             <button onclick="exportarJSON()" class="btn-primary">💾 Exportar JSON</button>
-            <button onclick="exportarCSVparaNotion()" class="btn-primary" style="background: #0ea5e9;">📑 CSV → Notion</button>
             <label for="import-file" class="btn-primary" style="padding: 8px 12px; border-radius: 6px; background: #475569; color: white; cursor: pointer; font-size: 0.95rem;">📁 Cargar</label>
             <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importarJSON(event)">
         </div>
     </header>
 
     <div id="banner-modo" style="display: none; background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem;">
-        ⚠️ <strong>Modo Edición de Textos Activado:</strong> Haz clic en cualquier celda, título o nombre de alumno para modificar su texto.
+        ⚠️ <strong>Modo Edición Activado:</strong> Puedes reordenar alumnos arrastrándolos por su icono ⠿, editar textos haciendo clic o eliminar elementos.
     </div>
 
     <div class="main-layout">
         <!-- Sidebar Alumnos -->
         <div class="sidebar">
-            <h3>Alumnos</h3>
+            <div class="sidebar-header">
+                <h3>Alumnos</h3>
+                <button onclick="abrirModalMasivo()" class="btn-primary" style="padding: 2px 6px; font-size: 0.75rem;" title="Añadir en masa">+ Masivo</button>
+            </div>
+            
+            <div class="student-tools">
+                <select id="select-orden" onchange="cambiarCriterioOrden(this.value)">
+                    <option value="manual">Orden manual</option>
+                    <option value="apellido">Ordenar por Apellido</option>
+                    <option value="nombre">Ordenar por Nombre</option>
+                </select>
+                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer; font-size: 0.75rem;" title="Mantener orden automático">
+                    <input type="checkbox" id="check-auto-orden" onchange="toggleAutoOrden(this.checked)"> Auto
+                </label>
+            </div>
+
             <ul id="lista-alumnos" class="student-list"></ul>
+            
             <div class="add-student-box">
-                <input type="text" id="nuevo-alumno-nombre" placeholder="Nombre alumno..." onkeypress="if(event.key === 'Enter') agregarAlumno()">
+                <input type="text" id="nuevo-alumno-nombre" placeholder="Nombre alumno..." onkeydown="manejarEnterAlumno(event)">
                 <button onclick="agregarAlumno()" class="btn-primary">+</button>
             </div>
         </div>
@@ -363,9 +441,23 @@
     </div>
 </div>
 
+<!-- Modal para Importación Masiva -->
+<div id="modal-masivo" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">Añadir Alumnos en Masa</h3>
+        <p style="font-size: 0.85rem; color: var(--text-light);">Pega tu listado de alumnos (un nombre por línea desde Excel o un documento de texto):</p>
+        <textarea id="textarea-masivo" placeholder="Pérez García, Juan&#10;López Ruiz, María&#10;..."></textarea>
+        <div class="modal-buttons">
+            <button onclick="cerrarModalMasivo()">Cancelar</button>
+            <button onclick="procesarAlumnosMasivos()" class="btn-primary">Importar Alumnos</button>
+        </div>
+    </div>
+</div>
+
 <script>
     let datosApp = {
         tituloRubrica: "Rúbrica de Recuperaciones",
+        ordenAutomatico: false,
         niveles: [
             { id: "exc", nombre: "Excelente", valor: 2.0 },
             { id: "bien", nombre: "Bien", valor: 1.2 },
@@ -378,14 +470,15 @@
             { id: "c4", nombre: "Ortografía", descripciones: { exc: "Sin faltas relevantes", bien: "Algunas faltas", reg: "Poco interés y visibles" } }
         ],
         alumnos: [
-            { id: "a1", nombre: "Alumno 1", calificaciones: {} },
-            { id: "a2", nombre: "Alumno 2", calificaciones: {} }
+            { id: "a1", nombre: "Álvarez Gómez, Ana", calificaciones: {} },
+            { id: "a2", nombre: "Benítez Pérez, Carlos", calificaciones: {} }
         ]
     };
 
     let alumnoActualId = "a1";
     let modoEdicionTextos = false;
     let cambiosSinGuardar = false;
+    let draggedIndex = null;
 
     window.addEventListener("beforeunload", function (e) {
         if (cambiosSinGuardar) {
@@ -404,9 +497,18 @@
             document.getElementById("btn-dark").innerText = "☀️";
         }
         document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica;
+        document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
+        if (datosApp.ordenAutomatico) {
+            document.getElementById("select-orden").value = "apellido";
+            document.getElementById("select-orden").disabled = true;
+            ordenarAlumnos('apellido', false);
+        }
         renderizarAlumnos();
         if (datosApp.alumnos.length > 0) {
-            seleccionarAlumno(datosApp.alumnos[0].id);
+            if (!datosApp.alumnos.some(a => a.id === alumnoActualId)) {
+                alumnoActualId = datosApp.alumnos[0].id;
+            }
+            seleccionarAlumno(alumnoActualId);
         }
     }
 
@@ -445,83 +547,132 @@
         marcarModificado();
     }
 
-function exportarCSVparaNotion() {
-    let filas = [];
-    
-    // Cabeceras del CSV (Asegúrate de que la primera coincida con el nombre de la propiedad en Notion, ej: "Nombre")
-    let cabeceras = ["Nombre", "Nota Total"];
-    datosApp.criterios.forEach(crit => {
-        cabeceras.push(crit.nombre);
-    });
-    filas.push(cabeceras.map(c => `"${c.replace(/"/g, '""')}"`).join(","));
-
-    // Rellenar los datos de cada alumno
-    datosApp.alumnos.forEach(alumno => {
-        let notaTotal = calcularNotaTotal(alumno).toFixed(1);
-        let fila = [`"${alumno.nombre.replace(/"/g, '""')}"`, `"${notaTotal}"`];
-
-        datosApp.criterios.forEach(crit => {
-            const nivelId = alumno.calificaciones[crit.id];
-            const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
-            let valorCelda = nivelObj ? nivelObj.nombre : "";
-            fila.push(`"${valorCelda.replace(/"/g, '""')}"`);
-        });
-
-        filas.push(fila.join(","));
-    });
-
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + filas.join("\n");
-    let nombreSugerido = (datosApp.tituloRubrica || "rubrica").toLowerCase().replace(/[^a-z0-9]/g, "_") + "_notion.csv";
-    let nombreArchivo = prompt("Nombre para el archivo CSV compatible con Notion:", nombreSugerido);
-    
-    if (!nombreArchivo) return;
-    if (!nombreArchivo.endsWith(".csv")) {
-        nombreArchivo += ".csv";
+    // --- LÓGICA DE ORDENACIÓN Y APELLIDOS ---
+    function extraerApellidoClave(nombreCompleto) {
+        let limpio = nombreCompleto.trim();
+        if (limpio.includes(',')) {
+            return limpio.split(',')[0].trim().toLowerCase();
+        }
+        let partes = limpio.split(/\s+/);
+        if (partes.length > 1) {
+            return partes[partes.length - 1].toLowerCase();
+        }
+        return limpio.toLowerCase();
     }
 
-    const encodedUri = encodeURI(csvContent);
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", encodedUri);
-    downloadAnchor.setAttribute("download", nombreArchivo);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-}
+    function ordenarAlumnos(criterio, guardar = true) {
+        datosApp.alumnos.sort((a, b) => {
+            if (criterio === 'apellido') {
+                let apA = extraerApellidoClave(a.nombre);
+                let apB = extraerApellidoClave(b.nombre);
+                return apA.localeCompare(apB, 'es', { sensitivity: 'base' });
+            } else if (criterio === 'nombre') {
+                return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+            }
+            return 0;
+        });
+        if (guardar) {
+            marcarModificado();
+        }
+        renderizarAlumnos();
+    }
 
+    function cambiarCriterioOrden(val) {
+        if (val !== 'manual') {
+            ordenarAlumnos(val);
+        }
+    }
+
+    function toggleAutoOrden(estado) {
+        datosApp.ordenAutomatico = estado;
+        const sel = document.getElementById("select-orden");
+        if (estado) {
+            sel.value = "apellido";
+            sel.disabled = true;
+            ordenarAlumnos('apellido');
+        } else {
+            sel.disabled = false;
+        }
+        marcarModificado();
+    }
+
+    // --- DRAG AND DROP ---
+    function handleDragStart(e, index) {
+        if (!modoEdicionTextos || datosApp.ordenAutomatico) {
+            e.preventDefault();
+            return;
+        }
+        draggedIndex = index;
+        e.dataTransfer.effectAllowed = "move";
+        e.target.classList.add("dragging");
+    }
+
+    function handleDragOver(e) {
+        if (!modoEdicionTextos || datosApp.ordenAutomatico) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+    }
+
+    function handleDrop(e, targetIndex) {
+        if (!modoEdicionTextos || datosApp.ordenAutomatico) return;
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+        const movido = datosApp.alumnos.splice(draggedIndex, 1)[0];
+        datosApp.alumnos.splice(targetIndex, 0, movido);
+        draggedIndex = null;
+        marcarModificado();
+        renderizarAlumnos();
+    }
+
+    function handleDragEnd(e) {
+        e.target.classList.remove("dragging");
+        draggedIndex = null;
+        renderizarAlumnos();
+    }
+
+    // --- RENDERIZADO ALUMNOS ---
     function renderizarAlumnos() {
-    const lista = document.getElementById("lista-alumnos");
-    lista.innerHTML = "";
-    
-    const totalCriterios = datosApp.criterios.length;
-
-    datosApp.alumnos.forEach(alumno => {
-        const notaTotal = calcularNotaTotal(alumno);
+        const lista = document.getElementById("lista-alumnos");
+        lista.innerHTML = "";
         
-        const criteriosEvaluados = Object.keys(alumno.calificaciones).filter(critId => 
-            datosApp.criterios.some(c => c.id === critId) && alumno.calificaciones[critId]
-        ).length;
+        datosApp.alumnos.forEach((alumno, index) => {
+            const notaTotal = calcularNotaTotal(alumno);
+            const li = document.createElement("li");
+            li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
+            
+            if (modoEdicionTextos && !datosApp.ordenAutomatico) {
+                li.draggable = true;
+                li.addEventListener("dragstart", (e) => handleDragStart(e, index));
+                li.addEventListener("dragover", handleDragOver);
+                li.addEventListener("drop", (e) => handleDrop(e, index));
+                li.addEventListener("dragend", handleDragEnd);
+            }
 
-        const porcentaje = totalCriterios > 0 ? (criteriosEvaluados / totalCriterios) * 100 : 0;
+            let handleHtml = (modoEdicionTextos && !datosApp.ordenAutomatico) ? `<span class="drag-handle" title="Arrastrar para reordenar">⠿</span>` : '';
 
-        const li = document.createElement("li");
-        li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
-        li.style.setProperty('--progress', `${porcentaje}%`);
-        
-        li.innerHTML = `
-            <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
-                <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${alumno.nombre}</span>
-                <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts (${criteriosEvaluados}/${totalCriterios})</span>
-            </div>
-            ${modoEdicionTextos ? '<button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno(\'' + alumno.id + '\')">×</button>' : ''}
-        `;
-        lista.appendChild(li);
-    });
-}
+            li.innerHTML = `
+                <div class="student-main-content">
+                    <span class="student-index">${index + 1}.</span>
+                    ${handleHtml}
+                    <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
+                        <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${alumno.nombre}</span>
+                        <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts</span>
+                    </div>
+                </div>
+                <button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno('${alumno.id}')">×</button>
+            `;
+            lista.appendChild(li);
+        });
+    }
 
     function actualizarNombreAlumnoDirecto(id, el) {
         const alumno = datosApp.alumnos.find(a => a.id === id);
         if (alumno) {
             alumno.nombre = el.innerText;
+            if (datosApp.ordenAutomatico) {
+                ordenarAlumnos('apellido', false);
+            }
             if (id === alumnoActualId) {
                 document.getElementById("titulo-alumno").innerText = alumno.nombre;
             }
@@ -658,6 +809,14 @@ function exportarCSVparaNotion() {
         marcarModificado();
     }
 
+    // --- GESTIÓN DE ALUMNOS (INPUT Y TECLA ENTER) ---
+    function manejarEnterAlumno(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Evita el salto de línea por defecto
+            agregarAlumno();
+        }
+    }
+
     function agregarAlumno() {
         const input = document.getElementById("nuevo-alumno-nombre");
         const nombre = input.value.trim();
@@ -665,8 +824,53 @@ function exportarCSVparaNotion() {
         const nuevoId = "a_" + Date.now();
         datosApp.alumnos.push({ id: nuevoId, nombre: nombre, calificaciones: {} });
         input.value = "";
+        
+        if (datosApp.ordenAutomatico) {
+            ordenarAlumnos('apellido', false);
+        }
+        
         seleccionarAlumno(nuevoId);
         marcarModificado();
+    }
+
+    // --- IMPORTACIÓN MASIVA ---
+    function abrirModalMasivo() {
+        document.getElementById("modal-masivo").style.display = "flex";
+        document.getElementById("textarea-masivo").value = "";
+    }
+
+    function cerrarModalMasivo() {
+        document.getElementById("modal-masivo").style.display = "none";
+    }
+
+    function procesarAlumnosMasivos() {
+        const texto = document.getElementById("textarea-masivo").value;
+        const lineas = texto.split('\n');
+        let anadidos = 0;
+
+        lineas.forEach(linea => {
+            let nombreLimpio = linea.trim();
+            // Ignorar cabeceras comunes de Excel si se pegan por error
+            if (nombreLimpio && nombreLimpio.toLowerCase() !== "alumnos" && nombreLimpio.toLowerCase() !== "nombre") {
+                const nuevoId = "a_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+                datosApp.alumnos.push({ id: nuevoId, nombre: nombreLimpio, calificaciones: {} });
+                anadidos++;
+            }
+        });
+
+        if (anadidos > 0) {
+            if (datosApp.ordenAutomatico) {
+                ordenarAlumnos('apellido', false);
+            }
+            if (datosApp.alumnos.length > 0 && !datosApp.alumnos.some(a => a.id === alumnoActualId)) {
+                seleccionarAlumno(datosApp.alumnos[0].id);
+            } else {
+                renderizarAlumnos();
+            }
+            marcarModificado();
+            alert(`¡Se han añadido ${anadidos} alumnos correctamente!`);
+        }
+        cerrarModalMasivo();
     }
 
     function eliminarAlumno(id) {
@@ -713,7 +917,7 @@ function exportarCSVparaNotion() {
             return;
         }
         datosApp.niveles = datosApp.niveles.filter(n => n.id !== id);
-        datosApp.criterios.forEach(c => delete c.descripciones[id]);
+        datosApp.criterios.files = datosApp.criterios.forEach(c => delete c.descripciones[id]);
         datosApp.alumnos.forEach(a => {
             for (let critId in a.calificaciones) {
                 if (a.calificaciones[critId] === id) delete a.calificaciones[critId];
@@ -725,52 +929,53 @@ function exportarCSVparaNotion() {
     }
 
     function exportarJSON() {
-    let nombreSugerido = (datosApp.tituloRubrica || "rubrica").toLowerCase().replace(/[^a-z0-9]/g, "_");
-    let nombreArchivo = prompt("Introduce el nombre para el archivo JSON:", nombreSugerido);
-    
-    if (!nombreArchivo) return; // Si el usuario cancela, no hace nada
-    
-    if (!nombreArchivo.endsWith(".json")) {
-        nombreArchivo += ".json";
+        let nombreSugerido = (datosApp.tituloRubrica || "rubrica").toLowerCase().replace(/[^a-z0-9]/g, "_");
+        let nombreArchivo = prompt("Introduce el nombre para el archivo JSON:", nombreSugerido);
+        if (!nombreArchivo) return;
+        if (!nombreArchivo.endsWith(".json")) {
+            nombreArchivo += ".json";
+        }
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(datosApp, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", nombreArchivo);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        cambiosSinGuardar = false;
     }
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(datosApp, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", nombreArchivo);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    cambiosSinGuardar = false;
-}
-
-function importarJSON(event) {
-    if (cambiosSinGuardar && !confirm("Tienes cambios sin guardar. ¿Seguro que quieres cargar otro archivo y perder los cambios actuales?")) {
-        event.target.value = ""; // Limpia el input para permitir volver a seleccionarlo si se arrepienten
-        return;
-    }
-
-    if (event.target.files[0]) {
+    function importarJSON(event) {
         const fileReader = new FileReader();
-        fileReader.readAsText(event.target.files[0], "UTF-8");
-        fileReader.onload = (e) => {
-            try {
-                datosApp = JSON.parse(e.target.result);
-                document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
-                renderizarAlumnos();
-                if (datosApp.alumnos && datosApp.alumnos.length > 0) {
-                    seleccionarAlumno(datosApp.alumnos[0].id);
+        if (event.target.files[0]) {
+            fileReader.readAsText(event.target.files[0], "UTF-8");
+            fileReader.onload = (e) => {
+                try {
+                    datosApp = JSON.parse(e.target.result);
+                    document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
+                    document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
+                    const sel = document.getElementById("select-orden");
+                    if (datosApp.ordenAutomatico) {
+                        sel.value = "apellido";
+                        sel.disabled = true;
+                        ordenarAlumnos('apellido', false);
+                    } else {
+                        sel.disabled = false;
+                        sel.value = "manual";
+                    }
+                    renderizarAlumnos();
+                    if (datosApp.alumnos && datosApp.alumnos.length > 0) {
+                        seleccionarAlumno(datosApp.alumnos[0].id);
+                    }
+                    cambiosSinGuardar = false;
+                    alert("¡Rúbrica cargada correctamente!");
+                } catch (error) {
+                    alert("Error al parsear el archivo JSON.");
                 }
-                cambiosSinGuardar = false;
-                alert("¡Rúbrica cargada correctamente!");
-            } catch (error) {
-                alert("Error al parsear el archivo JSON.");
-            } finally {
-                event.target.value = ""; // Limpia el input al terminar para que se pueda volver a cargar el mismo archivo si se desea
-            }
-        };
+            };
+        }
     }
-}
 
     init();
 </script>
