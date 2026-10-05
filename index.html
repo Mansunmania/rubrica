@@ -113,7 +113,7 @@
 
         .main-layout {
             display: grid;
-            grid-template-columns: 310px 1fr;
+            grid-template-columns: 320px 1fr;
             gap: 20px;
         }
 
@@ -159,6 +159,7 @@
             margin: 0;
             max-height: 400px;
             overflow-y: auto;
+            position: relative;
         }
 
         .student-item {
@@ -311,17 +312,24 @@
 
         .add-student-box, .add-criteria-box {
             display: flex;
-            gap: 5px;
+            flex-direction: column;
+            gap: 6px;
             margin-top: 15px;
         }
 
-        .add-student-box input, .add-criteria-box input {
+        .add-student-inputs {
+            display: flex;
+            gap: 5px;
+        }
+
+        .add-student-inputs input, .add-criteria-box input {
             flex: 1;
             padding: 6px 10px;
             border: 1px solid var(--border);
             border-radius: 6px;
             background: var(--card-bg);
             color: var(--text);
+            font-size: 0.9rem;
         }
 
         .col-header-tools {
@@ -355,7 +363,7 @@
             background: var(--card-bg);
             padding: 20px;
             border-radius: 12px;
-            width: 400px;
+            width: 450px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .modal-content textarea {
@@ -406,7 +414,7 @@
             <div class="student-tools">
                 <select id="select-orden" onchange="cambiarCriterioOrden(this.value)">
                     <option value="manual">Orden manual</option>
-                    <option value="apellido">Ordenar por Apellido</option>
+                    <option value="apellido">Ordenar por Apellidos</option>
                     <option value="nombre">Ordenar por Nombre</option>
                 </select>
                 <label style="display: flex; align-items: center; gap: 3px; cursor: pointer; font-size: 0.75rem;" title="Mantener orden automático">
@@ -414,11 +422,14 @@
                 </label>
             </div>
 
-            <ul id="lista-alumnos" class="student-list"></ul>
+            <ul id="lista-alumnos" class="student-list" ondragover="handleListDragOver(event)"></ul>
             
             <div class="add-student-box">
-                <input type="text" id="nuevo-alumno-nombre" placeholder="Nombre alumno..." onkeydown="manejarEnterAlumno(event)">
-                <button onclick="agregarAlumno()" class="btn-primary">+</button>
+                <div class="add-student-inputs">
+                    <input type="text" id="nuevo-alumno-apellidos" placeholder="Apellidos..." onkeydown="manejarEnterAlumno(event)">
+                    <input type="text" id="nuevo-alumno-nombre" placeholder="Nombre..." onkeydown="manejarEnterAlumno(event)">
+                </div>
+                <button onclick="agregarAlumno()" class="btn-primary" style="width: 100%;">+ Añadir Alumno</button>
             </div>
         </div>
 
@@ -433,7 +444,7 @@
                 <table class="matrix" id="tabla-matriz"></table>
             </div>
 
-            <div class="add-criteria-box">
+            <div class="add-criteria-box" style="flex-direction: row;">
                 <button onclick="agregarCriterio()" class="btn-primary">+ Añadir Criterio</button>
                 <button onclick="agregarNivel()" class="btn-primary" style="margin-left: auto;">+ Añadir Nivel</button>
             </div>
@@ -445,8 +456,8 @@
 <div id="modal-masivo" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0;">Añadir Alumnos en Masa</h3>
-        <p style="font-size: 0.85rem; color: var(--text-light);">Pega tu listado de alumnos (un nombre por línea desde Excel o un documento de texto):</p>
-        <textarea id="textarea-masivo" placeholder="Pérez García, Juan&#10;López Ruiz, María&#10;..."></textarea>
+        <p style="font-size: 0.85rem; color: var(--text-light);">Pega tu listado. Formato recomendado (Apellidos, Nombre por línea):</p>
+        <textarea id="textarea-masivo" placeholder="Pérez Aguado, Pepito&#10;García López, María&#10;Ruiz Gómez, Juan"></textarea>
         <div class="modal-buttons">
             <button onclick="cerrarModalMasivo()">Cancelar</button>
             <button onclick="procesarAlumnosMasivos()" class="btn-primary">Importar Alumnos</button>
@@ -470,8 +481,8 @@
             { id: "c4", nombre: "Ortografía", descripciones: { exc: "Sin faltas relevantes", bien: "Algunas faltas", reg: "Poco interés y visibles" } }
         ],
         alumnos: [
-            { id: "a1", nombre: "Álvarez Gómez, Ana", calificaciones: {} },
-            { id: "a2", nombre: "Benítez Pérez, Carlos", calificaciones: {} }
+            { id: "a1", apellidos: "Álvarez Gómez", nombre: "Ana", calificaciones: {} },
+            { id: "a2", apellidos: "Benítez Pérez", nombre: "Carlos", calificaciones: {} }
         ]
     };
 
@@ -479,6 +490,7 @@
     let modoEdicionTextos = false;
     let cambiosSinGuardar = false;
     let draggedIndex = null;
+    let scrollInterval = null;
 
     window.addEventListener("beforeunload", function (e) {
         if (cambiosSinGuardar) {
@@ -547,27 +559,24 @@
         marcarModificado();
     }
 
-    // --- LÓGICA DE ORDENACIÓN Y APELLIDOS ---
-    function extraerApellidoClave(nombreCompleto) {
-        let limpio = nombreCompleto.trim();
-        if (limpio.includes(',')) {
-            return limpio.split(',')[0].trim().toLowerCase();
-        }
-        let partes = limpio.split(/\s+/);
-        if (partes.length > 1) {
-            return partes[partes.length - 1].toLowerCase();
-        }
-        return limpio.toLowerCase();
+    function nombreCompleto(alumno) {
+        return `${alumno.apellidos}, ${alumno.nombre}`;
     }
 
     function ordenarAlumnos(criterio, guardar = true) {
         datosApp.alumnos.sort((a, b) => {
             if (criterio === 'apellido') {
-                let apA = extraerApellidoClave(a.nombre);
-                let apB = extraerApellidoClave(b.nombre);
-                return apA.localeCompare(apB, 'es', { sensitivity: 'base' });
+                let comp = a.apellidos.localeCompare(b.apellidos, 'es', { sensitivity: 'base' });
+                if (comp === 0) {
+                    return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+                }
+                return comp;
             } else if (criterio === 'nombre') {
-                return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+                let comp = a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+                if (comp === 0) {
+                    return a.apellidos.localeCompare(b.apellidos, 'es', { sensitivity: 'base' });
+                }
+                return comp;
             }
             return 0;
         });
@@ -596,7 +605,7 @@
         marcarModificado();
     }
 
-    // --- DRAG AND DROP ---
+    // --- DRAG AND DROP & AUTO-SCROLL ---
     function handleDragStart(e, index) {
         if (!modoEdicionTextos || datosApp.ordenAutomatico) {
             e.preventDefault();
@@ -607,15 +616,46 @@
         e.target.classList.add("dragging");
     }
 
-    function handleDragOver(e) {
+    function handleDragOver(e, targetIndex) {
         if (!modoEdicionTextos || datosApp.ordenAutomatico) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
+        gestionarAutoScroll(e);
+    }
+
+    function handleListDragOver(e) {
+        if (!modoEdicionTextos || datosApp.ordenAutomatico) return;
+        e.preventDefault();
+        gestionarAutoScroll(e);
+    }
+
+    function gestionarAutoScroll(e) {
+        const lista = document.getElementById("lista-alumnos");
+        const rect = lista.getBoundingClientRect();
+        const umbral = 40;
+        const velocidad = 8;
+
+        clearInterval(scrollInterval);
+
+        if (e.clientY - rect.top < umbral) {
+            scrollInterval = setInterval(() => {
+                lista.scrollTop -= velocidad;
+            }, 20);
+        } else if (rect.bottom - e.clientY < umbral) {
+            scrollInterval = setInterval(() => {
+                lista.scrollTop += velocidad;
+            }, 20);
+        }
+    }
+
+    function detenerAutoScroll() {
+        clearInterval(scrollInterval);
     }
 
     function handleDrop(e, targetIndex) {
         if (!modoEdicionTextos || datosApp.ordenAutomatico) return;
         e.preventDefault();
+        detenerAutoScroll();
         if (draggedIndex === null || draggedIndex === targetIndex) return;
 
         const movido = datosApp.alumnos.splice(draggedIndex, 1)[0];
@@ -627,6 +667,7 @@
 
     function handleDragEnd(e) {
         e.target.classList.remove("dragging");
+        detenerAutoScroll();
         draggedIndex = null;
         renderizarAlumnos();
     }
@@ -644,23 +685,24 @@
             if (modoEdicionTextos && !datosApp.ordenAutomatico) {
                 li.draggable = true;
                 li.addEventListener("dragstart", (e) => handleDragStart(e, index));
-                li.addEventListener("dragover", handleDragOver);
+                li.addEventListener("dragover", (e) => handleDragOver(e, index));
                 li.addEventListener("drop", (e) => handleDrop(e, index));
                 li.addEventListener("dragend", handleDragEnd);
             }
 
             let handleHtml = (modoEdicionTextos && !datosApp.ordenAutomatico) ? `<span class="drag-handle" title="Arrastrar para reordenar">⠿</span>` : '';
+            let deleteBtnHtml = modoEdicionTextos ? `<button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno('${alumno.id}')">×</button>` : '';
 
             li.innerHTML = `
                 <div class="student-main-content">
                     <span class="student-index">${index + 1}.</span>
                     ${handleHtml}
                     <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
-                        <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${alumno.nombre}</span>
+                        <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onclick="event.stopPropagation()"' : ''}>${nombreCompleto(alumno)}</span>
                         <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts</span>
                     </div>
                 </div>
-                <button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno('${alumno.id}')">×</button>
+                ${deleteBtnHtml}
             `;
             lista.appendChild(li);
         });
@@ -669,12 +711,22 @@
     function actualizarNombreAlumnoDirecto(id, el) {
         const alumno = datosApp.alumnos.find(a => a.id === id);
         if (alumno) {
-            alumno.nombre = el.innerText;
+            let texto = el.innerText.trim();
+            // Si el usuario edita directamente y usa coma, lo partimos
+            if (texto.includes(',')) {
+                let partes = texto.split(',');
+                alumno.apellidos = partes[0].trim();
+                alumno.nombre = partes.slice(1).join(',').trim();
+            } else {
+                // Si no usa coma, lo ponemos todo como apellidos o nombre según prefiera, por defecto apellidos
+                alumno.apellidos = texto;
+                alumno.nombre = "";
+            }
             if (datosApp.ordenAutomatico) {
                 ordenarAlumnos('apellido', false);
             }
             if (id === alumnoActualId) {
-                document.getElementById("titulo-alumno").innerText = alumno.nombre;
+                document.getElementById("titulo-alumno").innerText = nombreCompleto(alumno);
             }
             marcarModificado();
         }
@@ -697,7 +749,7 @@
         renderizarAlumnos();
         const alumno = datosApp.alumnos.find(a => a.id === id);
         if (alumno) {
-            document.getElementById("titulo-alumno").innerText = alumno.nombre;
+            document.getElementById("titulo-alumno").innerText = nombreCompleto(alumno);
             document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
         }
         renderizarMatriz();
@@ -809,21 +861,28 @@
         marcarModificado();
     }
 
-    // --- GESTIÓN DE ALUMNOS (INPUT Y TECLA ENTER) ---
+    // --- GESTIÓN DE ALUMNOS (CAMPOS SEPARADOS Y ENTER) ---
     function manejarEnterAlumno(event) {
         if (event.key === 'Enter') {
-            event.preventDefault(); // Evita el salto de línea por defecto
+            event.preventDefault();
             agregarAlumno();
         }
     }
 
     function agregarAlumno() {
-        const input = document.getElementById("nuevo-alumno-nombre");
-        const nombre = input.value.trim();
-        if (!nombre) return;
+        const inputApellidos = document.getElementById("nuevo-alumno-apellidos");
+        const inputNombre = document.getElementById("nuevo-alumno-nombre");
+        const apellidos = inputApellidos.value.trim();
+        const nombre = inputNombre.value.trim();
+
+        if (!apellidos && !nombre) return;
+
         const nuevoId = "a_" + Date.now();
-        datosApp.alumnos.push({ id: nuevoId, nombre: nombre, calificaciones: {} });
-        input.value = "";
+        datosApp.alumnos.push({ id: nuevoId, apellidos: apellidos, nombre: nombre, calificaciones: {} });
+        
+        inputApellidos.value = "";
+        inputNombre.value = "";
+        inputApellidos.focus();
         
         if (datosApp.ordenAutomatico) {
             ordenarAlumnos('apellido', false);
@@ -849,11 +908,29 @@
         let anadidos = 0;
 
         lineas.forEach(linea => {
-            let nombreLimpio = linea.trim();
-            // Ignorar cabeceras comunes de Excel si se pegan por error
-            if (nombreLimpio && nombreLimpio.toLowerCase() !== "alumnos" && nombreLimpio.toLowerCase() !== "nombre") {
+            let lineaLimpia = linea.trim();
+            if (lineaLimpia && lineaLimpia.toLowerCase() !== "alumnos" && lineaLimpia.toLowerCase() !== "nombre") {
+                let apellidos = "";
+                let nombre = "";
+
+                if (lineaLimpia.includes(',')) {
+                    // Formato "Apellidos, Nombre"
+                    let partes = lineaLimpia.split(',');
+                    apellidos = partes[0].trim();
+                    nombre = partes.slice(1).join(',').trim();
+                } else {
+                    // Si pegan en una sola línea sin coma, intentamos separar por espacios (última palabra nombre, resto apellidos o viceversa)
+                    let partes = lineaLimpia.split(/\s+/);
+                    if (partes.length === 1) {
+                        apellidos = partes[0];
+                    } else {
+                        nombre = partes[partes.length - 1];
+                        apellidos = partes.slice(0, partes.length - 1).join(' ');
+                    }
+                }
+
                 const nuevoId = "a_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-                datosApp.alumnos.push({ id: nuevoId, nombre: nombreLimpio, calificaciones: {} });
+                datosApp.alumnos.push({ id: nuevoId, apellidos: apellidos, nombre: nombre, calificaciones: {} });
                 anadidos++;
             }
         });
@@ -917,7 +994,7 @@
             return;
         }
         datosApp.niveles = datosApp.niveles.filter(n => n.id !== id);
-        datosApp.criterios.files = datosApp.criterios.forEach(c => delete c.descripciones[id]);
+        datosApp.criterios.forEach(c => delete c.descripciones[id]);
         datosApp.alumnos.forEach(a => {
             for (let critId in a.calificaciones) {
                 if (a.calificaciones[critId] === id) delete a.calificaciones[critId];
@@ -952,7 +1029,22 @@
             fileReader.readAsText(event.target.files[0], "UTF-8");
             fileReader.onload = (e) => {
                 try {
-                    datosApp = JSON.parse(e.target.result);
+                    let importado = JSON.parse(e.target.result);
+                    // Compatibilidad por si el JSON antiguo guardaba 'nombre' en un solo string
+                    importado.alumnos = importado.alumnos.map(a => {
+                        if (a.nombre && !a.apellidos) {
+                            let partes = a.nombre.split(',');
+                            if (partes.length > 1) {
+                                return { id: a.id, apellidos: partes[0].trim(), nombre: partes.slice(1).join(',').trim(), calificaciones: a.calificaciones || {} };
+                            } else {
+                                let p = a.nombre.split(' ');
+                                return { id: a.id, apellidos: p.slice(0, p.length-1).join(' '), nombre: p[p.length-1] || "", calificaciones: a.calificaciones || {} };
+                            }
+                        }
+                        return a;
+                    });
+
+                    datosApp = importado;
                     document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
                     document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
                     const sel = document.getElementById("select-orden");
