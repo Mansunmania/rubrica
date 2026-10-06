@@ -266,6 +266,21 @@
             color: var(--primary);
         }
 
+        .evaluation-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .evaluation-controls select {
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
         table.matrix {
             width: 100%;
             border-collapse: collapse;
@@ -428,7 +443,14 @@
         <div class="evaluation-panel">
             <div class="current-student-header">
                 <h2 id="titulo-alumno" class="current-student-title">Selecciona un alumno</h2>
-                <div id="nota-total-alumno" style="font-weight: bold; font-size: 1.1rem; color: var(--success);">Total: 0 pts</div>
+                <div class="evaluation-controls">
+                    <select id="select-tipo-calculo" onchange="cambiarTipoCalculo(this.value)">
+                        <option value="suma">Suma total de puntos</option>
+                        <option value="media">Media por criterio</option>
+                        <option value="porcentaje">Porcentaje (%)</option>
+                    </select>
+                    <div id="nota-total-alumno" style="font-weight: bold; font-size: 1.1rem; color: var(--success);">Total: 0 pts</div>
+                </div>
             </div>
             
             <div style="overflow-x: auto;">
@@ -460,6 +482,7 @@
     let datosApp = {
         tituloRubrica: "Rúbrica de Recuperaciones",
         ordenAutomatico: false,
+        tipoCalculo: "suma", // 'suma', 'media', 'porcentaje'
         niveles: [
             { id: "exc", nombre: "Excelente", valor: 2.0 },
             { id: "bien", nombre: "Bien", valor: 1.2 },
@@ -501,6 +524,8 @@
         }
         document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica;
         document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
+        document.getElementById("select-tipo-calculo").value = datosApp.tipoCalculo || "suma";
+        
         if (datosApp.ordenAutomatico) {
             document.getElementById("select-orden").value = "apellido";
             document.getElementById("select-orden").disabled = true;
@@ -596,6 +621,58 @@
         marcarModificado();
     }
 
+    function cambiarTipoCalculo(val) {
+        datosApp.tipoCalculo = val;
+        marcarModificado();
+        renderizarAlumnos();
+        const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
+        if (alumno) {
+            document.getElementById("nota-total-alumno").innerText = formatearNotaTotal(calcularNotaTotal(alumno));
+        }
+    }
+
+    // --- CÁLCULO DE NOTAS ---
+    function calcularNotaTotal(alumno) {
+        let total = 0;
+        let criteriosEvaluados = 0;
+        let maxValorPosible = 0;
+
+        let maxNivelValor = 0;
+        if (datosApp.niveles.length > 0) {
+            maxNivelValor = Math.max(...datosApp.niveles.map(n => n.valor));
+        }
+        maxValorPosible = datosApp.criterios.length * maxNivelValor;
+
+        datosApp.criterios.forEach(crit => {
+            const nivelId = alumno.calificaciones[crit.id];
+            if (nivelId) {
+                const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
+                if (nivelObj) {
+                    total += nivelObj.valor;
+                    criteriosEvaluados++;
+                }
+            }
+        });
+
+        const tipo = datosApp.tipoCalculo || "suma";
+        if (tipo === "media") {
+            return criteriosEvaluados > 0 ? (total / criteriosEvaluados) : 0;
+        } else if (tipo === "porcentaje") {
+            return maxValorPosible > 0 ? (total / maxValorPosible) * 100 : 0;
+        }
+        return total; // suma por defecto
+    }
+
+    function formatearNotaTotal(valor) {
+        const tipo = datosApp.tipoCalculo || "suma";
+        if (tipo === "porcentaje") {
+            return `Total: ${valor.toFixed(1)}%`;
+        } else if (tipo === "media") {
+            return `Media: ${valor.toFixed(2)} pts`;
+        }
+        return `Total: ${valor.toFixed(1)} pts`;
+    }
+
     // --- DRAG AND DROP & AUTO-SCROLL ---
     function handleDragStart(e, index) {
         if (!modoEdicionTextos || datosApp.ordenAutomatico) {
@@ -684,13 +761,15 @@
             let handleHtml = (modoEdicionTextos && !datosApp.ordenAutomatico) ? `<span class="drag-handle" title="Arrastrar para reordenar">⠿</span>` : '';
             let deleteBtnHtml = modoEdicionTextos ? `<button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno('${alumno.id}')">×</button>` : '';
 
+            let etiquetaNotaSidebar = datosApp.tipoCalculo === 'porcentaje' ? `${notaTotal.toFixed(1)}%` : `${notaTotal.toFixed(1)} pts`;
+
             li.innerHTML = `
                 <div class="student-main-content">
                     <span class="student-index">${index + 1}.</span>
                     ${handleHtml}
                     <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
                         <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onkeydown="manejarKeydownEdicion(event, this)" onclick="event.stopPropagation()"' : ''}>${nombreCompleto(alumno)}</span>
-                        <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts</span>
+                        <span class="student-score">Nota: ${etiquetaNotaSidebar}</span>
                     </div>
                 </div>
                 ${deleteBtnHtml}
@@ -702,7 +781,7 @@
     function manejarKeydownEdicion(event, el) {
         if (event.key === 'Enter') {
             event.preventDefault();
-            el.blur(); // Fuerza el guardado y quita el foco sin hacer salto de línea
+            el.blur();
         }
     }
 
@@ -734,25 +813,13 @@
         }
     }
 
-    function calcularNotaTotal(alumno) {
-        let total = 0;
-        datosApp.criterios.forEach(crit => {
-            const nivelId = alumno.calificaciones[crit.id];
-            if (nivelId) {
-                const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
-                if (nivelObj) total += nivelObj.valor;
-            }
-        });
-        return total;
-    }
-
     function seleccionarAlumno(id) {
         alumnoActualId = id;
         renderizarAlumnos();
         const alumno = datosApp.alumnos.find(a => a.id === id);
         if (alumno) {
             document.getElementById("titulo-alumno").innerText = nombreCompleto(alumno);
-            document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+            document.getElementById("nota-total-alumno").innerText = formatearNotaTotal(calcularNotaTotal(alumno));
         }
         renderizarMatriz();
     }
@@ -835,7 +902,7 @@
         }
         renderizarMatriz();
         renderizarAlumnos();
-        document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+        document.getElementById("nota-total-alumno").innerText = formatearNotaTotal(calcularNotaTotal(alumno));
         marcarModificado();
     }
 
@@ -849,7 +916,7 @@
         if(n) n.valor = parseFloat(val) || 0;
         renderizarAlumnos();
         const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
-        if(alumno) document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+        if(alumno) document.getElementById("nota-total-alumno").innerText = formatearNotaTotal(calcularNotaTotal(alumno));
         marcarModificado();
     }
     function actualizarNombreCriterio(id, el) {
@@ -863,7 +930,7 @@
         marcarModificado();
     }
 
-    // --- GESTIÓN DE ALUMNOS (INPUT ÚNICO Y ENTER) ---
+    // --- GESTIÓN DE ALUMNOS ---
     function manejarEnterAlumno(event) {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -1059,6 +1126,8 @@
                     datosApp = importado;
                     document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
                     document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
+                    document.getElementById("select-tipo-calculo").value = datosApp.tipoCalculo || "suma";
+                    
                     const sel = document.getElementById("select-orden");
                     if (datosApp.ordenAutomatico) {
                         sel.value = "apellido";
