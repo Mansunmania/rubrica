@@ -217,7 +217,7 @@
         .student-info {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 3px;
             flex: 1;
             overflow: hidden;
         }
@@ -239,9 +239,33 @@
             white-space: nowrap;
         }
 
-        .student-score {
+        .student-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             font-size: 0.75rem;
             opacity: 0.85;
+        }
+
+        .student-progress-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(0,0,0,0.15);
+            border-radius: 2px;
+            margin-right: 8px;
+            overflow: hidden;
+        }
+        .student-item.active .student-progress-bar {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .student-progress-fill {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.2s;
+        }
+        .student-item.active .student-progress-fill {
+            background: #fff;
         }
 
         .evaluation-panel {
@@ -631,7 +655,7 @@
         }
     }
 
-    // --- CÁLCULO DE NOTAS ---
+    // --- CÁLCULO DE NOTAS Y PROGRESO ---
     function calcularNotaTotal(alumno) {
         let total = 0;
         let criteriosEvaluados = 0;
@@ -671,6 +695,18 @@
             return `Media: ${valor.toFixed(2)} pts`;
         }
         return `Total: ${valor.toFixed(1)} pts`;
+    }
+
+    function calcularProgresoEvaluacion(alumno) {
+        const totalCriterios = datosApp.criterios.length;
+        if (totalCriterios === 0) return 0;
+        let evaluados = 0;
+        datosApp.criterios.forEach(crit => {
+            if (alumno.calificaciones[crit.id]) {
+                evaluados++;
+            }
+        });
+        return Math.round((evaluados / totalCriterios) * 100);
     }
 
     // --- DRAG AND DROP & AUTO-SCROLL ---
@@ -747,6 +783,7 @@
         
         datosApp.alumnos.forEach((alumno, index) => {
             const notaTotal = calcularNotaTotal(alumno);
+            const porcentajeProgreso = calcularProgresoEvaluacion(alumno);
             const li = document.createElement("li");
             li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
             
@@ -769,7 +806,12 @@
                     ${handleHtml}
                     <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
                         <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onkeydown="manejarKeydownEdicion(event, this)" onclick="event.stopPropagation()"' : ''}>${nombreCompleto(alumno)}</span>
-                        <span class="student-score">Nota: ${etiquetaNotaSidebar}</span>
+                        <div class="student-meta-row">
+                            <div class="student-progress-bar" title="${porcentajeProgreso}% evaluado">
+                                <div class="student-progress-fill" style="width: ${porcentajeProgreso}%"></div>
+                            </div>
+                            <span>${etiquetaNotaSidebar}</span>
+                        </div>
                     </div>
                 </div>
                 ${deleteBtnHtml}
