@@ -111,6 +111,17 @@
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
         }
 
+        button.btn-tab {
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        button.btn-tab.active-tab {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
         .main-layout {
             display: grid;
             grid-template-columns: 310px 1fr;
@@ -157,7 +168,7 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: 400px;
+            max-height: 650px; /* Aumentado para ver más alumnos sin scroll */
             overflow-y: auto;
             position: relative;
         }
@@ -217,7 +228,7 @@
         .student-info {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
             flex: 1;
             overflow: hidden;
         }
@@ -239,36 +250,12 @@
             white-space: nowrap;
         }
 
-        .student-meta-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .student-score {
             font-size: 0.75rem;
             opacity: 0.85;
         }
 
-        .student-progress-bar {
-            flex: 1;
-            height: 4px;
-            background: rgba(0,0,0,0.15);
-            border-radius: 2px;
-            margin-right: 8px;
-            overflow: hidden;
-        }
-        .student-item.active .student-progress-bar {
-            background: rgba(255,255,255,0.3);
-        }
-
-        .student-progress-fill {
-            height: 100%;
-            background: var(--success);
-            transition: width 0.2s;
-        }
-        .student-item.active .student-progress-fill {
-            background: #fff;
-        }
-
-        .evaluation-panel {
+        .evaluation-panel, .overview-panel {
             background: var(--card-bg);
             padding: 20px;
             border-radius: 12px;
@@ -290,28 +277,13 @@
             color: var(--primary);
         }
 
-        .evaluation-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .evaluation-controls select {
-            padding: 4px 8px;
-            font-size: 0.85rem;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: var(--card-bg);
-            color: var(--text);
-        }
-
-        table.matrix {
+        table.matrix, table.overview-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
 
-        table.matrix th, table.matrix td {
+        table.matrix th, table.matrix td, table.overview-table th, table.overview-table td {
             border: 1px solid var(--border);
             padding: 10px;
             text-align: left;
@@ -319,11 +291,31 @@
             color: var(--text);
         }
 
-        table.matrix th {
+        table.matrix th, table.overview-table th {
             background: var(--table-head);
             font-weight: 600;
             color: var(--text-light);
             position: relative;
+        }
+
+        table.overview-table tbody tr:hover {
+            background: var(--sidebar-bg);
+            cursor: pointer;
+        }
+
+        .progress-bar-container {
+            width: 100px;
+            background: var(--border);
+            border-radius: 4px;
+            height: 8px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--success);
         }
 
         .editable-cell {
@@ -424,6 +416,8 @@
     <header>
         <h1 id="titulo-rubrica" contenteditable="true" onblur="actualizarTituloRubrica(this)">Rúbrica de Recuperaciones</h1>
         <div class="controls">
+            <button id="btn-tab-evaluar" class="btn-tab active-tab" onclick="cambiarVista('evaluar')">📋 Evaluar Alumnos</button>
+            <button id="btn-tab-general" class="btn-tab" onclick="cambiarVista('general')">📊 Vista General / Notas</button>
             <button id="btn-dark" onclick="toggleDarkMode()">🌙</button>
             <button id="btn-modo" class="btn-mode" onclick="toggleModoEdicion()">✏️ Edición: OFF</button>
             <button onclick="exportarJSON()" class="btn-primary">💾 Exportar JSON</button>
@@ -436,7 +430,8 @@
         ⚠️ <strong>Modo Edición Activado:</strong> Puedes reordenar alumnos arrastrándolos por su icono ⠿, editar textos haciendo clic o eliminar elementos.
     </div>
 
-    <div class="main-layout">
+    <!-- VISTA EVALUACIÓN -->
+    <div id="vista-evaluar" class="main-layout">
         <!-- Sidebar Alumnos -->
         <div class="sidebar">
             <div class="sidebar-header">
@@ -467,14 +462,7 @@
         <div class="evaluation-panel">
             <div class="current-student-header">
                 <h2 id="titulo-alumno" class="current-student-title">Selecciona un alumno</h2>
-                <div class="evaluation-controls">
-                    <select id="select-tipo-calculo" onchange="cambiarTipoCalculo(this.value)">
-                        <option value="suma">Suma total de puntos</option>
-                        <option value="media">Media por criterio</option>
-                        <option value="porcentaje">Porcentaje (%)</option>
-                    </select>
-                    <div id="nota-total-alumno" style="font-weight: bold; font-size: 1.1rem; color: var(--success);">Total: 0 pts</div>
-                </div>
+                <div id="nota-total-alumno" style="font-weight: bold; font-size: 1.1rem; color: var(--success);">Total: 0 pts</div>
             </div>
             
             <div style="overflow-x: auto;">
@@ -485,6 +473,17 @@
                 <button onclick="agregarCriterio()" class="btn-primary">+ Añadir Criterio</button>
                 <button onclick="agregarNivel()" class="btn-primary" style="margin-left: auto;">+ Añadir Nivel</button>
             </div>
+        </div>
+    </div>
+
+    <!-- VISTA GENERAL / NOTAS -->
+    <div id="vista-general" class="overview-panel" style="display: none;">
+        <div class="current-student-header">
+            <h2 class="current-student-title">Resumen General de Alumnos</h2>
+            <div id="info-resumen-clase" style="font-size: 0.95rem; color: var(--text-light);"></div>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="overview-table" id="tabla-overview"></table>
         </div>
     </div>
 </div>
@@ -506,7 +505,6 @@
     let datosApp = {
         tituloRubrica: "Rúbrica de Recuperaciones",
         ordenAutomatico: false,
-        tipoCalculo: "suma", // 'suma', 'media', 'porcentaje'
         niveles: [
             { id: "exc", nombre: "Excelente", valor: 2.0 },
             { id: "bien", nombre: "Bien", valor: 1.2 },
@@ -527,6 +525,7 @@
     let alumnoActualId = "a1";
     let modoEdicionTextos = false;
     let cambiosSinGuardar = false;
+    let vistaActual = "evaluar"; // 'evaluar' o 'general'
     let draggedIndex = null;
     let scrollInterval = null;
 
@@ -548,8 +547,6 @@
         }
         document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica;
         document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
-        document.getElementById("select-tipo-calculo").value = datosApp.tipoCalculo || "suma";
-        
         if (datosApp.ordenAutomatico) {
             document.getElementById("select-orden").value = "apellido";
             document.getElementById("select-orden").disabled = true;
@@ -561,6 +558,27 @@
                 alumnoActualId = datosApp.alumnos[0].id;
             }
             seleccionarAlumno(alumnoActualId);
+        }
+    }
+
+    function cambiarVista(vista) {
+        vistaActual = vista;
+        const btnEvaluar = document.getElementById("btn-tab-evaluar");
+        const btnGeneral = document.getElementById("btn-tab-general");
+        const divEvaluar = document.getElementById("vista-evaluar");
+        const divGeneral = document.getElementById("vista-general");
+
+        if (vista === 'evaluar') {
+            btnEvaluar.classList.add("active-tab");
+            btnGeneral.classList.remove("active-tab");
+            divEvaluar.style.display = "grid";
+            divGeneral.style.display = "none";
+        } else {
+            btnGeneral.classList.add("active-tab");
+            btnEvaluar.classList.remove("active-tab");
+            divGeneral.style.display = "block";
+            divEvaluar.style.display = "none";
+            renderizarVistaGeneral();
         }
     }
 
@@ -592,6 +610,7 @@
         }
         renderizarMatriz();
         renderizarAlumnos();
+        if (vistaActual === 'general') renderizarVistaGeneral();
     }
 
     function actualizarTituloRubrica(elemento) {
@@ -624,6 +643,7 @@
             marcarModificado();
         }
         renderizarAlumnos();
+        if (vistaActual === 'general') renderizarVistaGeneral();
     }
 
     function cambiarCriterioOrden(val) {
@@ -645,56 +665,17 @@
         marcarModificado();
     }
 
-    function cambiarTipoCalculo(val) {
-        datosApp.tipoCalculo = val;
-        marcarModificado();
-        renderizarAlumnos();
-        const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
-        if (alumno) {
-            document.getElementById("nota-total-alumno").innerText = formatearNotaTotal(calcularNotaTotal(alumno));
-        }
-    }
-
-    // --- CÁLCULO DE NOTAS Y PROGRESO ---
+    // --- CÁLCULOS ---
     function calcularNotaTotal(alumno) {
         let total = 0;
-        let criteriosEvaluados = 0;
-        let maxValorPosible = 0;
-
-        let maxNivelValor = 0;
-        if (datosApp.niveles.length > 0) {
-            maxNivelValor = Math.max(...datosApp.niveles.map(n => n.valor));
-        }
-        maxValorPosible = datosApp.criterios.length * maxNivelValor;
-
         datosApp.criterios.forEach(crit => {
             const nivelId = alumno.calificaciones[crit.id];
             if (nivelId) {
                 const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
-                if (nivelObj) {
-                    total += nivelObj.valor;
-                    criteriosEvaluados++;
-                }
+                if (nivelObj) total += nivelObj.valor;
             }
         });
-
-        const tipo = datosApp.tipoCalculo || "suma";
-        if (tipo === "media") {
-            return criteriosEvaluados > 0 ? (total / criteriosEvaluados) : 0;
-        } else if (tipo === "porcentaje") {
-            return maxValorPosible > 0 ? (total / maxValorPosible) * 100 : 0;
-        }
-        return total; // suma por defecto
-    }
-
-    function formatearNotaTotal(valor) {
-        const tipo = datosApp.tipoCalculo || "suma";
-        if (tipo === "porcentaje") {
-            return `Total: ${valor.toFixed(1)}%`;
-        } else if (tipo === "media") {
-            return `Media: ${valor.toFixed(2)} pts`;
-        }
-        return `Total: ${valor.toFixed(1)} pts`;
+        return total;
     }
 
     function calcularProgresoEvaluacion(alumno) {
@@ -702,9 +683,7 @@
         if (totalCriterios === 0) return 0;
         let evaluados = 0;
         datosApp.criterios.forEach(crit => {
-            if (alumno.calificaciones[crit.id]) {
-                evaluados++;
-            }
+            if (alumno.calificaciones[crit.id]) evaluados++;
         });
         return Math.round((evaluados / totalCriterios) * 100);
     }
@@ -783,7 +762,6 @@
         
         datosApp.alumnos.forEach((alumno, index) => {
             const notaTotal = calcularNotaTotal(alumno);
-            const porcentajeProgreso = calcularProgresoEvaluacion(alumno);
             const li = document.createElement("li");
             li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
             
@@ -798,20 +776,13 @@
             let handleHtml = (modoEdicionTextos && !datosApp.ordenAutomatico) ? `<span class="drag-handle" title="Arrastrar para reordenar">⠿</span>` : '';
             let deleteBtnHtml = modoEdicionTextos ? `<button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); eliminarAlumno('${alumno.id}')">×</button>` : '';
 
-            let etiquetaNotaSidebar = datosApp.tipoCalculo === 'porcentaje' ? `${notaTotal.toFixed(1)}%` : `${notaTotal.toFixed(1)} pts`;
-
             li.innerHTML = `
                 <div class="student-main-content">
                     <span class="student-index">${index + 1}.</span>
                     ${handleHtml}
                     <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
                         <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onkeydown="manejarKeydownEdicion(event, this)" onclick="event.stopPropagation()"' : ''}>${nombreCompleto(alumno)}</span>
-                        <div class="student-meta-row">
-                            <div class="student-progress-bar" title="${porcentajeProgreso}% evaluado">
-                                <div class="student-progress-fill" style="width: ${porcentajeProgreso}%"></div>
-                            </div>
-                            <span>${etiquetaNotaSidebar}</span>
-                        </div>
+                        <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts</span>
                     </div>
                 </div>
                 ${deleteBtnHtml}
@@ -861,9 +832,74 @@
         const alumno = datosApp.alumnos.find(a => a.id === id);
         if (alumno) {
             document.getElementById("titulo-alumno").innerText = nombreCompleto(alumno);
-            document.getElementById("nota-total-alumno").innerText = formatearNotaTotal(calcularNotaTotal(alumno));
+            document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
         }
         renderizarMatriz();
+    }
+
+    // --- RENDERIZADO VISTA GENERAL / NOTAS ---
+    function renderizarVistaGeneral() {
+        const tabla = document.getElementById("tabla-overview");
+        const infoResumen = document.getElementById("info-resumen-clase");
+        tabla.innerHTML = "";
+
+        let thead = document.createElement("thead");
+        let trHead = document.createElement("tr");
+        trHead.innerHTML = `
+            <th style="width: 50px;">Nº</th>
+            <th>Alumno</th>
+            <th style="width: 150px;">Progreso</th>
+        `;
+        datosApp.criterios.forEach(crit => {
+            trHead.innerHTML += `<th>${crit.nombre}</th>`;
+        });
+        trHead.innerHTML += `<th style="width: 100px; text-align: right;">Total</th>`;
+        thead.appendChild(trHead);
+        tabla.appendChild(thead);
+
+        let tbody = document.createElement("tbody");
+        let totalAlumnos = datosApp.alumnos.length;
+        let alumnosCompletos = 0;
+
+        datosApp.alumnos.forEach((alumno, index) => {
+            const porcentaje = calcularProgresoEvaluacion(alumno);
+            if (porcentaje === 100) alumnosCompletos++;
+            const notaTotal = calcularNotaTotal(alumno);
+
+            let tr = document.createElement("tr");
+            tr.onclick = () => {
+                seleccionarAlumno(alumno.id);
+                cambiarVista('evaluar');
+            };
+
+            let htmlRow = `
+                <td><strong>${index + 1}.</strong></td>
+                <td><strong>${nombreCompleto(alumno)}</strong></td>
+                <td>
+                    <div class="progress-bar-container" title="${porcentaje}% evaluado">
+                        <div class="progress-bar-fill" style="width: ${porcentaje}%"></div>
+                    </div>
+                    <span style="font-size: 0.8rem;">${porcentaje}%</span>
+                </td>
+            `;
+
+            datosApp.criterios.forEach(crit => {
+                const nivelId = alumno.calificaciones[crit.id];
+                if (nivelId) {
+                    const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
+                    htmlRow += `<td><span style="font-size: 0.85rem; padding: 2px 6px; background: var(--sidebar-bg); border-radius: 4px; border: 1px solid var(--border);">${nivelObj ? nivelObj.nombre : '-'}</span></td>`;
+                } else {
+                    htmlRow += `<td><span style="font-size: 0.85rem; color: var(--text-light); font-style: italic;">Sin evaluar</span></td>`;
+                }
+            });
+
+            htmlRow += `<td style="text-align: right; font-weight: bold; color: var(--success);">${notaTotal.toFixed(1)} pts</td>`;
+            tr.innerHTML = htmlRow;
+            tbody.appendChild(tr);
+        });
+
+        tabla.appendChild(tbody);
+        infoResumen.innerText = `Total alumnos: ${totalAlumnos} | Completamente evaluados: ${alumnosCompletos}/${totalAlumnos}`;
     }
 
     function renderizarMatriz() {
@@ -944,7 +980,7 @@
         }
         renderizarMatriz();
         renderizarAlumnos();
-        document.getElementById("nota-total-alumno").innerText = formatearNotaTotal(calcularNotaTotal(alumno));
+        document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
         marcarModificado();
     }
 
@@ -958,7 +994,7 @@
         if(n) n.valor = parseFloat(val) || 0;
         renderizarAlumnos();
         const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
-        if(alumno) document.getElementById("nota-total-alumno").innerText = formatearNotaTotal(calcularNotaTotal(alumno));
+        if(alumno) document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
         marcarModificado();
     }
     function actualizarNombreCriterio(id, el) {
@@ -1014,6 +1050,7 @@
         
         seleccionarAlumno(nuevoId);
         marcarModificado();
+        if (vistaActual === 'general') renderizarVistaGeneral();
     }
 
     // --- IMPORTACIÓN MASIVA ---
@@ -1067,6 +1104,7 @@
                 renderizarAlumnos();
             }
             marcarModificado();
+            if (vistaActual === 'general') renderizarVistaGeneral();
             alert(`¡Se han añadido ${anadidos} alumnos correctamente!`);
         }
         cerrarModalMasivo();
@@ -1083,6 +1121,7 @@
             renderizarAlumnos();
         }
         marcarModificado();
+        if (vistaActual === 'general') renderizarVistaGeneral();
     }
 
     function agregarCriterio() {
@@ -1092,6 +1131,7 @@
         datosApp.criterios.push({ id: nuevoId, nombre: "Nuevo Criterio", descripciones: descripcionesVacias });
         renderizarMatriz();
         marcarModificado();
+        if (vistaActual === 'general') renderizarVistaGeneral();
     }
 
     function eliminarCriterio(id) {
@@ -1100,6 +1140,7 @@
         renderizarMatriz();
         renderizarAlumnos();
         marcarModificado();
+        if (vistaActual === 'general') renderizarVistaGeneral();
     }
 
     function agregarNivel() {
@@ -1168,8 +1209,6 @@
                     datosApp = importado;
                     document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
                     document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
-                    document.getElementById("select-tipo-calculo").value = datosApp.tipoCalculo || "suma";
-                    
                     const sel = document.getElementById("select-orden");
                     if (datosApp.ordenAutomatico) {
                         sel.value = "apellido";
@@ -1184,6 +1223,7 @@
                         seleccionarAlumno(datosApp.alumnos[0].id);
                     }
                     cambiosSinGuardar = false;
+                    if (vistaActual === 'general') renderizarVistaGeneral();
                     alert("¡Rúbrica cargada correctamente!");
                 } catch (error) {
                     alert("Error al parsear el archivo JSON.");
