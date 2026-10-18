@@ -565,9 +565,28 @@
 
     function marcarModificado() {
         cambiosSinGuardar = true;
+        guardarLocalAutomatico();
+    }
+
+    function guardarLocalAutomatico() {
+        try {
+            localStorage.setItem("rubrica_estado_auto", JSON.stringify(datosApp));
+        } catch (e) {
+            console.error("No se pudo guardar en el almacenamiento local:", e);
+        }
     }
 
     function init() {
+        // Cargar estado previo de localStorage si existe
+        try {
+            let guardadoLocal = localStorage.getItem("rubrica_estado_auto");
+            if (guardadoLocal) {
+                datosApp = JSON.parse(guardadoLocal);
+            }
+        } catch (e) {
+            console.error("Error al cargar la memoria local:", e);
+        }
+
         if (localStorage.getItem("darkMode") === "true") {
             document.documentElement.setAttribute("data-theme", "dark");
             document.getElementById("btn-dark").innerText = "☀️";
@@ -1305,6 +1324,7 @@
                         seleccionarAlumno(datosApp.alumnos[0].id);
                     }
                     cambiosSinGuardar = false;
+                    guardarLocalAutomatico(); // Actualizar memoria local con el JSON importado
                     if (vistaActual === 'general') renderizarVistaGeneral();
                     alert("¡Rúbrica cargada correctamente!");
                 } catch (error) {
