@@ -254,9 +254,32 @@
             white-space: nowrap;
         }
 
-        .student-score {
+        .student-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             font-size: 0.75rem;
             opacity: 0.85;
+        }
+
+        .progress-bar-sidebar {
+            width: 70px;
+            background: var(--border);
+            border-radius: 3px;
+            height: 5px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .student-item.active .progress-bar-sidebar {
+            background: rgba(255,255,255,0.4);
+        }
+        .progress-bar-sidebar-fill {
+            height: 100%;
+            background: var(--success);
+        }
+        .student-item.active .progress-bar-sidebar-fill {
+            background: #ffffff;
         }
 
         .evaluation-panel, .overview-panel {
@@ -552,7 +575,6 @@
         document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica;
         document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
         
-        // Asegurar IDs únicos limpios en todos los alumnos al iniciar
         datosApp.alumnos.forEach((a, index) => {
             if (!a.id || a.id.trim() === "") {
                 a.id = "a_" + Date.now() + "_" + index;
@@ -792,6 +814,7 @@
         
         datosApp.alumnos.forEach((alumno, index) => {
             const notaTotal = calcularNotaTotal(alumno);
+            const porcentaje = calcularProgresoEvaluacion(alumno);
             const li = document.createElement("li");
             li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
             
@@ -812,7 +835,15 @@
                     ${handleHtml}
                     <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
                         <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onkeydown="manejarKeydownEdicion(event, this)" onfocus="seleccionarTextoAlFoco(this)" onclick="event.stopPropagation()"' : ''}>${nombreCompleto(alumno)}</span>
-                        <span class="student-score">Nota: ${notaTotal.toFixed(1)} pts</span>
+                        <div class="student-meta">
+                            <span>Nota: ${notaTotal.toFixed(1)} pts</span>
+                            <div>
+                                <div class="progress-bar-sidebar" title="${porcentaje}% evaluado">
+                                    <div class="progress-bar-sidebar-fill" style="width: ${porcentaje}%"></div>
+                                </div>
+                                <span style="font-size: 0.7rem; margin-left: 2px;">${porcentaje}%</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 ${deleteBtnHtml}
@@ -1242,7 +1273,6 @@
                                 return { id: a.id || ("a_imp_" + idx), apellidos: p.slice(0, p.length-1).join(' '), nombre: p[p.length-1] || "", calificaciones: a.calificaciones || {} };
                             }
                         }
-                        // Asegurar que tengan ID único aunque vengan de JSON externo repetidos
                         if (!a.id) {
                             a.id = "a_imp_" + idx + "_" + Math.floor(Math.random() * 1000);
                         }
@@ -1251,7 +1281,6 @@
 
                     datosApp = importado;
                     
-                    // Asignar IDs garantizados únicos a todos tras importar
                     let idsVistos = new Set();
                     datosApp.alumnos.forEach((a, idx) => {
                         if (idsVistos.has(a.id)) {
