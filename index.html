@@ -551,6 +551,14 @@
         }
         document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica;
         document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
+        
+        // Asegurar IDs únicos limpios en todos los alumnos al iniciar
+        datosApp.alumnos.forEach((a, index) => {
+            if (!a.id || a.id.trim() === "") {
+                a.id = "a_" + Date.now() + "_" + index;
+            }
+        });
+
         if (datosApp.ordenAutomatico) {
             document.getElementById("select-orden").value = "apellido";
             document.getElementById("select-orden").disabled = true;
@@ -1069,7 +1077,7 @@
             }
         }
 
-        const nuevoId = "a_" + Date.now();
+        const nuevoId = "a_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
         datosApp.alumnos.push({ id: nuevoId, apellidos: apellidos, nombre: nombre, calificaciones: {} });
         
         input.value = "";
@@ -1099,7 +1107,7 @@
         const lineas = texto.split('\n');
         let anadidos = 0;
 
-        lineas.forEach(linea => {
+        lineas.forEach((linea, index) => {
             let lineaLimpia = linea.trim();
             if (lineaLimpia && lineaLimpia.toLowerCase() !== "alumnos" && lineaLimpia.toLowerCase() !== "nombre") {
                 let apellidos = "";
@@ -1119,7 +1127,7 @@
                     }
                 }
 
-                const nuevoId = "a_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+                const nuevoId = "a_" + Date.now() + "_" + index + "_" + Math.floor(Math.random() * 1000);
                 datosApp.alumnos.push({ id: nuevoId, apellidos: apellidos, nombre: nombre, calificaciones: {} });
                 anadidos++;
             }
@@ -1224,20 +1232,34 @@
             fileReader.onload = (e) => {
                 try {
                     let importado = JSON.parse(e.target.result);
-                    importado.alumnos = importado.alumnos.map(a => {
+                    importado.alumnos = importado.alumnos.map((a, idx) => {
                         if (a.nombre && !a.apellidos) {
                             let partes = a.nombre.split(',');
                             if (partes.length > 1) {
-                                return { id: a.id, apellidos: partes[0].trim(), nombre: partes.slice(1).join(',').trim(), calificaciones: a.calificaciones || {} };
+                                return { id: a.id || ("a_imp_" + idx), apellidos: partes[0].trim(), nombre: partes.slice(1).join(',').trim(), calificaciones: a.calificaciones || {} };
                             } else {
                                 let p = a.nombre.split(' ');
-                                return { id: a.id, apellidos: p.slice(0, p.length-1).join(' '), nombre: p[p.length-1] || "", calificaciones: a.calificaciones || {} };
+                                return { id: a.id || ("a_imp_" + idx), apellidos: p.slice(0, p.length-1).join(' '), nombre: p[p.length-1] || "", calificaciones: a.calificaciones || {} };
                             }
+                        }
+                        // Asegurar que tengan ID único aunque vengan de JSON externo repetidos
+                        if (!a.id) {
+                            a.id = "a_imp_" + idx + "_" + Math.floor(Math.random() * 1000);
                         }
                         return a;
                     });
 
                     datosApp = importado;
+                    
+                    // Asignar IDs garantizados únicos a todos tras importar
+                    let idsVistos = new Set();
+                    datosApp.alumnos.forEach((a, idx) => {
+                        if (idsVistos.has(a.id)) {
+                            a.id = "a_fix_" + idx + "_" + Math.floor(Math.random() * 10000);
+                        }
+                        idsVistos.add(a.id);
+                    });
+
                     document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
                     document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
                     const sel = document.getElementById("select-orden");
