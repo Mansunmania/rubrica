@@ -309,6 +309,21 @@
             color: var(--primary);
         }
 
+        .evaluation-header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .evaluation-header-right select {
+            padding: 5px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
         table.matrix, table.overview-table {
             width: 100%;
             border-collapse: collapse;
@@ -497,7 +512,14 @@
         <div class="evaluation-panel">
             <div class="current-student-header">
                 <h2 id="titulo-alumno" class="current-student-title">Selecciona un alumno</h2>
-                <div id="nota-total-alumno" style="font-weight: bold; font-size: 1.1rem; color: var(--success);">Total: 0 pts</div>
+                <div class="evaluation-header-right">
+                    <select id="select-tipo-calculo" onchange="cambiarTipoCalculo(this.value)">
+                        <option value="suma">Suma total de puntos</option>
+                        <option value="media">Media por criterio</option>
+                        <option value="porcentaje">Porcentaje (%)</option>
+                    </select>
+                    <div id="nota-total-alumno" style="font-weight: bold; font-size: 1.1rem; color: var(--success);">Total: 0 pts</div>
+                </div>
             </div>
             
             <div style="overflow-x: auto;">
@@ -540,6 +562,7 @@
     let datosApp = {
         tituloRubrica: "Rúbrica de Recuperaciones",
         ordenAutomatico: false,
+        tipoCalculo: "suma", // 'suma', 'media', 'porcentaje'
         niveles: [
             { id: "exc", nombre: "Excelente", valor: 2.0 },
             { id: "bien", nombre: "Bien", valor: 1.2 },
@@ -594,6 +617,9 @@
             console.error("Error al cargar la memoria local:", e);
         }
 
+        if (!datosApp.tipoCalculo) datosApp.tipoCalculo = "suma";
+        document.getElementById("select-tipo-calculo").value = datosApp.tipoCalculo;
+
         if (localStorage.getItem("darkMode") === "true") {
             document.documentElement.setAttribute("data-theme", "dark");
             document.getElementById("btn-dark").innerText = "☀️";
@@ -619,6 +645,19 @@
             }
             seleccionarAlumno(alumnoActualId);
         }
+    }
+
+    function cambiarTipoCalculo(val) {
+        datosApp.tipoCalculo = val;
+        marcarModificado();
+        if (alumnoActualId) {
+            const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
+            if (alumno) {
+                document.getElementById("nota-total-alumno").innerText = `Total: ${formatearNota(alumno)}`;
+            }
+        }
+        renderizarAlumnos();
+        if (vistaActual === 'general') renderizarVistaGeneral();
     }
 
     function cambiarVista(vista) {
@@ -743,23 +782,8 @@
         marcarModificado();
     }
 
-    // --- EXPORTAR ALUMNOS TEXTO PLANO ---
-    function exportarAlumnosTexto() {
-        if (!datosApp.alumnos || datosApp.alumnos.length === 0) {
-            alert("No hay alumnos en la lista para exportar.");
-            return;
-        }
-        let textoPlano = datosApp.alumnos.map(a => nombreCompleto(a)).join('\n');
-        navigator.clipboard.writeText(textoPlano).then(() => {
-            alert("¡Listado de alumnos copiado al portapapeles!\nYa puedes pegarlo en otra rúbrica.");
-        }).catch(err => {
-            console.error("Error al copiar al portapapeles: ", err);
-            prompt("Copia manualmente este listado:", textoPlano);
-        });
-    }
-
-    // --- CÁLCULOS ---
-    function calcularNotaTotal(alumno) {
+    // --- CÁLCULOS DE NOTA ---
+    function calcularNotaRaw(alumno) {
         let total = 0;
         datosApp.criterios.forEach(crit => {
             const nivelId = alumno.calificaciones[crit.id];
@@ -769,6 +793,42 @@
             }
         });
         return total;
+    }
+
+    function formatearNota(alumno) {
+        const modo = datosApp.tipoCalculo || "suma";
+        const totalCriterios = datosApp.criterios.length;
+
+        if (modo === "media") {
+            if (totalCriterios === 0) return "0.0 pts";
+            let suma = 0;
+            let evaluados = 0;
+            datosApp.criterios.forEach(crit => {
+                const nivelId = alumno.calificaciones[crit.id];
+                if (nivelId) {
+                    const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
+                    if (nivelObj) {
+                        suma += nivelObj.valor;
+                        evaluados++;
+                    }
+                }
+            });
+            if (evaluados === 0) return "0.0 pts";
+            return (suma / evaluados).toFixed(1) + " media";
+        } else if (modo === "porcentaje") {
+            let maxPosible = 0;
+            if (datosApp.niveles.length > 0) {
+                let maxValorNivel = Math.max(...datosApp.niveles.map(n => n.valor));
+                maxPosible = totalCriterios * maxValorNivel;
+            }
+            if (maxPosible === 0) return "0%";
+            let actual = calcularNotaRaw(alumno);
+            let pct = Math.round((actual / maxPosible) * 100);
+            return pct + "%";
+        } else {
+            // Suma por defecto
+            return calcularNotaRaw(alumno).toFixed(1) + " pts";
+        }
     }
 
     function calcularProgresoEvaluacion(alumno) {
@@ -854,7 +914,7 @@
         lista.innerHTML = "";
         
         datosApp.alumnos.forEach((alumno, index) => {
-            const notaTotal = calcularNotaTotal(alumno);
+            const notaFormateada = formatearNota(alumno);
             const porcentaje = calcularProgresoEvaluacion(alumno);
             const li = document.createElement("li");
             li.className = `student-item ${alumno.id === alumnoActualId ? 'active' : ''}`;
@@ -877,7 +937,7 @@
                     <div class="student-info" onclick="if(!modoEdicionTextos) seleccionarAlumno('${alumno.id}')">
                         <span class="student-name-text" ${modoEdicionTextos ? 'contenteditable="true" onblur="actualizarNombreAlumnoDirecto(\'' + alumno.id + '\', this)" onkeydown="manejarKeydownEdicion(event, this)" onfocus="seleccionarTextoAlFoco(this)" onclick="event.stopPropagation()"' : ''}>${nombreCompleto(alumno)}</span>
                         <div class="student-meta">
-                            <span>Nota: ${notaTotal.toFixed(1)} pts</span>
+                            <span>Nota: ${notaFormateada}</span>
                             <div>
                                 <div class="progress-bar-sidebar" title="${porcentaje}% evaluado">
                                     <div class="progress-bar-sidebar-fill" style="width: ${porcentaje}%"></div>
@@ -934,7 +994,7 @@
         const alumno = datosApp.alumnos.find(a => a.id === id);
         if (alumno) {
             document.getElementById("titulo-alumno").innerText = nombreCompleto(alumno);
-            document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+            document.getElementById("nota-total-alumno").innerText = `Total: ${formatearNota(alumno)}`;
         }
         renderizarMatriz();
     }
@@ -966,7 +1026,7 @@
         datosApp.alumnos.forEach((alumno, index) => {
             const porcentaje = calcularProgresoEvaluacion(alumno);
             if (porcentaje === 100) alumnosCompletos++;
-            const notaTotal = calcularNotaTotal(alumno);
+            const notaFormateada = formatearNota(alumno);
 
             let tr = document.createElement("tr");
             tr.onclick = () => {
@@ -977,7 +1037,7 @@
             let htmlRow = `
                 <td><strong>${index + 1}.</strong></td>
                 <td><strong>${nombreCompleto(alumno)}</strong></td>
-                <td style="text-align: right; font-weight: bold; color: var(--success);">${notaTotal.toFixed(1)} pts</td>
+                <td style="text-align: right; font-weight: bold; color: var(--success);">${notaFormateada}</td>
                 <td>
                     <div class="progress-bar-container" title="${porcentaje}% evaluado">
                         <div class="progress-bar-fill" style="width: ${porcentaje}%"></div>
@@ -1082,7 +1142,7 @@
         }
         renderizarMatriz();
         renderizarAlumnos();
-        document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+        document.getElementById("nota-total-alumno").innerText = `Total: ${formatearNota(alumno)}`;
         marcarModificado();
     }
 
@@ -1099,7 +1159,7 @@
         if(n) n.valor = parseFloat(val) || 0;
         renderizarAlumnos();
         const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
-        if(alumno) document.getElementById("nota-total-alumno").innerText = `Total: ${calcularNotaTotal(alumno).toFixed(1)} pts`;
+        if(alumno) document.getElementById("nota-total-alumno").innerText = `Total: ${formatearNota(alumno)}`;
         marcarModificado();
     }
     function actualizarNombreCriterio(id, el) {
@@ -1162,6 +1222,21 @@
         seleccionarAlumno(nuevoId);
         marcarModificado();
         if (vistaActual === 'general') renderizarVistaGeneral();
+    }
+
+    // --- EXPORTAR ALUMNOS TEXTO PLANO ---
+    function exportarAlumnosTexto() {
+        if (!datosApp.alumnos || datosApp.alumnos.length === 0) {
+            alert("No hay alumnos en la lista para exportar.");
+            return;
+        }
+        let textoPlano = datosApp.alumnos.map(a => nombreCompleto(a)).join('\n');
+        navigator.clipboard.writeText(textoPlano).then(() => {
+            alert("¡Listado de alumnos copiado al portapapeles!\nYa puedes pegarlo en otra rúbrica.");
+        }).catch(err => {
+            console.error("Error al copiar al portapapeles: ", err);
+            prompt("Copia manualmente este listado:", textoPlano);
+        });
     }
 
     // --- IMPORTACIÓN MASIVA ---
@@ -1321,6 +1396,8 @@
                     });
 
                     datosApp = importado;
+                    if (!datosApp.tipoCalculo) datosApp.tipoCalculo = "suma";
+                    document.getElementById("select-tipo-calculo").value = datosApp.tipoCalculo;
                     
                     let idsVistos = new Set();
                     datosApp.alumnos.forEach((a, idx) => {
