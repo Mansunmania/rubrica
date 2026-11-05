@@ -515,7 +515,7 @@
                 <div class="evaluation-header-right">
                     <select id="select-tipo-calculo" onchange="cambiarTipoCalculo(this.value)">
                         <option value="suma">Suma total de puntos</option>
-                        <option value="media">Media por criterio</option>
+                        <option value="media">Media por criterio (vacías = 0)</option>
                         <option value="porcentaje">Porcentaje (%)</option>
                     </select>
                     <div id="nota-total-alumno" style="font-weight: bold; font-size: 1.1rem; color: var(--success);">Total: 0 pts</div>
@@ -800,21 +800,19 @@
         const totalCriterios = datosApp.criterios.length;
 
         if (modo === "media") {
-            if (totalCriterios === 0) return "0.0 pts";
+            if (totalCriterios === 0) return "0.0 media";
             let suma = 0;
-            let evaluados = 0;
             datosApp.criterios.forEach(crit => {
                 const nivelId = alumno.calificaciones[crit.id];
                 if (nivelId) {
                     const nivelObj = datosApp.niveles.find(n => n.id === nivelId);
                     if (nivelObj) {
                         suma += nivelObj.valor;
-                        evaluados++;
                     }
                 }
+                // Si no está evaluado, cuenta como 0 por defecto
             });
-            if (evaluados === 0) return "0.0 pts";
-            return (suma / evaluados).toFixed(1) + " media";
+            return (suma / totalCriterios).toFixed(1) + " media";
         } else if (modo === "porcentaje") {
             let maxPosible = 0;
             if (datosApp.niveles.length > 0) {
