@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor de Rúbricas Dinámico</title>
+    <title>Rúbrica de Recuperaciones</title>
     <style>
         :root {
             --bg-color: #f4f6f9;
@@ -615,6 +615,10 @@
         }
     });
 
+    function sincronizarTituloPestana(titulo) {
+        document.title = titulo || "Rúbrica";
+    }
+
     function marcarModificado() {
         cambiosSinGuardar = true;
         guardarLocalAutomatico();
@@ -645,7 +649,10 @@
             document.documentElement.setAttribute("data-theme", "dark");
             document.getElementById("btn-dark").innerText = "☀️";
         }
-        document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica;
+        const tituloInicial = datosApp.tituloRubrica || "Rúbrica de Recuperaciones";
+        document.getElementById("titulo-rubrica").innerText = tituloInicial;
+        sincronizarTituloPestana(tituloInicial);
+
         document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
         
         datosApp.alumnos.forEach((a, index) => {
@@ -734,8 +741,10 @@
     }
 
     function actualizarTituloRubrica(elemento) {
-        datosApp.tituloRubrica = elemento.innerText.trim() || "Rúbrica";
-        elemento.innerText = datosApp.tituloRubrica;
+        const nuevoTitulo = elemento.innerText.trim() || "Rúbrica";
+        datosApp.tituloRubrica = nuevoTitulo;
+        elemento.innerText = nuevoTitulo;
+        sincronizarTituloPestana(nuevoTitulo);
         marcarModificado();
     }
 
@@ -839,7 +848,6 @@
                     const nivelObj = datosApp.niveles.find(n => n.id === val);
                     if (nivelObj) sumaConVaciosComoCero += nivelObj.valor;
                 }
-                // Si está vacío y no es 'na', suma 0
             });
             return (sumaConVaciosComoCero / criteriosEfectivos).toFixed(1) + " media";
         } else if (modo === "porcentaje") {
@@ -852,7 +860,6 @@
             let pct = Math.round((actual / maxPosible) * 100);
             return pct + "%";
         } else {
-            // Suma por defecto
             return calcularNotaRaw(alumno).toFixed(1) + " pts";
         }
     }
@@ -873,9 +880,9 @@
         if (!alumno) return;
         
         if (alumno.calificaciones[critId] === 'na') {
-            delete alumno.calificaciones[critId]; // Quita la exención
+            delete alumno.calificaciones[critId];
         } else {
-            alumno.calificaciones[critId] = 'na'; // Marca como exento
+            alumno.calificaciones[critId] = 'na';
         }
         renderizarMatriz();
         renderizarAlumnos();
@@ -1186,7 +1193,7 @@
     function manejarClickCelda(criterioId, nivelId) {
         if (modoEdicionTextos) return;
         const alumno = datosApp.alumnos.find(a => a.id === alumnoActualId);
-        if (alumno && alumno.calificaciones[criterioId] === 'na') return; // Si está exento, no se puede calificar
+        if (alumno && alumno.calificaciones[criterioId] === 'na') return;
         calificar(criterioId, nivelId);
     }
 
@@ -1465,7 +1472,10 @@
                         idsVistos.add(a.id);
                     });
 
-                    document.getElementById("titulo-rubrica").innerText = datosApp.tituloRubrica || "Rúbrica";
+                    const tituloImportado = datosApp.tituloRubrica || "Rúbrica";
+                    document.getElementById("titulo-rubrica").innerText = tituloImportado;
+                    sincronizarTituloPestana(tituloImportado);
+
                     document.getElementById("check-auto-orden").checked = !!datosApp.ordenAutomatico;
                     const sel = document.getElementById("select-orden");
                     if (datosApp.ordenAutomatico) {
